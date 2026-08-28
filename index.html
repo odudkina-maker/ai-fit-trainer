@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Fit Trainer</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🏋️‍♀️ AI Fit Trainer</h1>
+            <p>Твій персональний онлайн-тренер</p>
+        </header>
+
+        <main>
+            <!-- Секція завантаження скріншота -->
+            <section class="upload-section">
+                <h2>1. Завантаж скріншот вправи</h2>
+                <div class="drop-zone" id="dropZone">
+                    <p>Натисни або перетягни сюди фото вправи</p>
+                    <input type="file" id="imageInput" accept="image/*">
+                </div>
+                <div id="previewContainer" class="hidden">
+                    <img id="imagePreview" src="" alt="Прев'ю вправи">
+                </div>
+            </section>
+
+            <!-- Налаштування тренера -->
+            <section class="settings-section">
+                <h2>2. Налаштування тренера</h2>
+                <div class="form-group">
+                    <label for="voiceSelect">Голос тренера:</label>
+                    <select id="voiceSelect">
+                        <option value="female">Жіночий (Енергійний)</option>
+                        <option value="male">Чоловічий (Строгий)</option>
+                    </select>
+                </div>
+                <button id="startBtn" class="btn-primary" disabled>Розпочати тренування</button>
+            </section>
+
+            <!-- Екран тренування (холостий стан) -->
+            <section id="workoutScreen" class="workout-section hidden">
+                <h2 id="exerciseTitle">Назва вправи</h2>
+                <div class="timer-display" id="timer">00:00</div>
+                <div class="status-box" id="aiFeedback">Очікування початку...</div>
+                <div class="controls">
+                    <button id="pauseBtn" class="btn-secondary">Пауза</button>
+                    <button id="stopBtn" class="btn-danger">Завершити</button>
+                </div>
+            </section>
+        </main>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>
