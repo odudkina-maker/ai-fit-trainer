@@ -32,8 +32,8 @@ let exerciseStage = "up";
 let lastVoiceTime = 0;
 let audioCtx = null;
 
-// Завантаження бібліотеки вправ із локальної пам'яті
 let exerciseLibrary = JSON.parse(localStorage.getItem('fitmae_library')) || [];
+let userStats = JSON.parse(localStorage.getItem('fitmae_stats')) || { workouts: 0, minutes: 0, calories: 0 };
 
 const motivationalPhrases = [
     "Давай, давай! Вже бачу, як жир на попі тане!",
@@ -54,9 +54,8 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.classList.add('active');
         document.getElementById(btn.dataset.tab).classList.add('active');
 
-        if (btn.dataset.tab === 'tab-library') {
-            renderLibrary();
-        }
+        if (btn.dataset.tab === 'tab-library') renderLibrary();
+        if (btn.dataset.tab === 'tab-progress') renderProgress();
     });
 });
 
@@ -230,6 +229,12 @@ function renderLibrary() {
     `).join('');
 }
 
+function renderProgress() {
+    document.getElementById('statWorkouts').textContent = userStats.workouts;
+    document.getElementById('statMinutes').textContent = (userStats.minutes / 60).toFixed(1);
+    document.getElementById('statCalories').textContent = userStats.calories;
+}
+
 window.startFromLibrary = function(index) {
     const item = exerciseLibrary[index];
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -380,4 +385,12 @@ function stopWorkout() {
     if (camera) camera.stop();
     isPaused = false;
     pauseBtn.textContent = "Пауза";
+
+    // Запис та збереження статистики
+    if (secondsPassed > 5) {
+        userStats.workouts += 1;
+        userStats.minutes += secondsPassed;
+        userStats.calories += Math.round(repCount * 0.5 + (secondsPassed / 60) * 4); // приблизний підрахунок калорій
+        localStorage.setItem('fitmae_stats', JSON.stringify(userStats));
+    }
 }
