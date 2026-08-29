@@ -1,10 +1,10 @@
-// Елементи DOM
 const imageInput = document.getElementById('imageInput');
 const dropZone = document.getElementById('dropZone');
 const previewContainer = document.getElementById('previewContainer');
 const imagePreview = document.getElementById('imagePreview');
-const startBtn = document.getElementById('startBtn');
+const analyzeBtn = document.getElementById('analyzeBtn');
 const voiceSelect = document.getElementById('voiceSelect');
+const apiKeyInput = document.getElementById('apiKeyInput');
 
 const workoutScreen = document.getElementById('workoutScreen');
 const exerciseTitle = document.getElementById('exerciseTitle');
@@ -16,56 +16,86 @@ const stopBtn = document.getElementById('stopBtn');
 let timerInterval = null;
 let secondsPassed = 0;
 let isPaused = false;
+let base64Image = "";
 
-// Клік по зоні завантаження
 dropZone.addEventListener('click', () => imageInput.click());
 
-// Обробка вибору файлу
 imageInput.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (file) {
         const reader = new FileReader();
         reader.onload = (event) => {
             imagePreview.src = event.target.result;
+            base64Image = event.target.result.split(',')[1];
             previewContainer.classList.remove('hidden');
-            startBtn.disabled = false;
+            analyzeBtn.disabled = false; // Розблоковуємо кнопку після вибору фото
         };
         reader.readAsDataURL(file);
     }
 });
 
-// Синтез мовлення (Голос тренера)
 function speak(text) {
     if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel(); // зупинити попередню мову
+        window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'uk-UA'; // Українська мова
+        utterance.lang = 'uk-UA';
         utterance.rate = 1.0;
-        
-        // Вибір тональності залежно від обраного тренера
-        if (voiceSelect.value === 'female') {
-            utterance.pitch = 1.2;
-        } else {
-            utterance.pitch = 0.8;
-        }
-        
+        utterance.pitch = voiceSelect.value === 'female' ? 1.2 : 0.8;
         window.speechSynthesis.speak(utterance);
     }
 }
 
-// Запуск тренування
-startBtn.addEventListener('click', () => {
+analyzeBtn.addEventListener('click', async () => {
+    const apiKey = apiKeyInput.value.trim();
+    if (!apiKey) {
+        alert("Будь ласка, введіть свій Gemini API Key!");
+        return;
+    }
+
     workoutScreen.classList.remove('hidden');
-    exerciseTitle.textContent = "Вправа зі скріншота";
-    aiFeedback.textContent = "Готові? Починаємо вправу!";
-    
-    speak("Привіт! Я твій AI тренер. Починаємо вправу! Тримай темп і слідкуй за технікою.");
-    
-    startTimer();
+    exerciseTitle.textContent = "Зчитування штучним інтелектом...";
+    aiFeedback.textContent = "Аналізуємо вправу зі скріншота...";
+    speak("Зараз я подивлюся на скріншот і розпізнаю вправу.");
+
+    try {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [
+                        { text: "Зроби короткий аналіз цієї вправи для тренування українською мовою. Відповідь дай чітко у форматі JSON із ключами: name (назва вправи), instruction (коротка порада з техніки до 15 слів), duration (рекомендована тривалість у секундах, тільки число, наприклад 30)." },
+                        { inline_data: { mime_type: "image/jpeg", data: base64Image } }
+                    ]
+                }]
+            })
+        });
+
+        const data = await response.json();
+        const rawText = data.candidates[0].content.parts[0].text;
+        const cleanJson = rawText.replace(/```json|```/g, "").trim();
+        const exerciseData = JSON.parse(cleanJson);
+
+        startWorkoutWithAI(exerciseData);
+
+    } catch (error) {
+        console.error(error);
+        exerciseTitle.textContent = "Помилка розпізнавання";
+        aiFeedback.textContent = "Не вдалося зчитати вправу. Перевірте API key та спробуйте ще раз.";
+        speak("Упсс, виникла помилка під час аналізу скріншота.");
+    }
 });
 
-// Логіка таймера
-function startTimer() {
+function startWorkoutWithAI(data) {
+    exerciseTitle.textContent = data.name;
+    aiFeedback.textContent = data.instruction;
+    
+    speak(`Вправу розпізнано! Це ${data.name}. ${data.instruction}. Починаємо!`);
+    
+    startTimer(data.duration || 30);
+}
+
+function startTimer(targetDuration) {
     clearInterval(timerInterval);
     secondsPassed = 0;
     updateTimerDisplay();
@@ -75,17 +105,13 @@ function startTimer() {
             secondsPassed++;
             updateTimerDisplay();
             
-            // AI підказки/мотивація під час вправи
-            if (secondsPassed === 10) {
-                aiFeedback.textContent = "Чудово працюєш! Не забувай дихати.";
-                speak("Чудово працюєш! Спину тримай рівно та не забувай дихати.");
-            } else if (secondsPassed === 20) {
-                aiFeedback.textContent = "Ще трохи! Залишилося зовсім трохи.";
-                speak("Ще 10 секунд! Дотисни цей підхід!");
-            } else if (secondsPassed === 30) {
+            if (secondsPassed === Math.floor(targetDuration / 2)) {
+                aiFeedback.textContent = "Половина шляху пройдена! Тримайся!";
+                speak("Половина вже позаду! Продовжуй у тому ж дусі!");
+            } else if (secondsPassed >= targetDuration) {
                 stopWorkout();
-                aiFeedback.textContent = "Підхід завершено! Відпочинок.";
-                speak("Молодець! Підхід завершено. Відпочинь 30 секунд.");
+                aiFeedback.textContent = "Чудова робота! Вправу виконано!";
+                speak("Стоп! Чудова робота, вправу виконано успішно!");
             }
         }
     }, 1000);
@@ -93,32 +119,23 @@ function startTimer() {
 
 function updateTimerDisplay() {
     const mins = String(Math.floor(secondsPassed / 60)).padStart(2, '0');
-    const secs = String(secondsPassed % 60).padStart(2, '0');
+    const secs = String(secsPassed = secondsPassed % 60).padStart(2, '0');
     timerDisplay.textContent = `${mins}:${secs}`;
 }
 
-// Пауза
 pauseBtn.addEventListener('click', () => {
     isPaused = !isPaused;
-    if (isPaused) {
-        pauseBtn.textContent = "Продовжити";
-        aiFeedback.textContent = "Пауза";
-        speak("Пауза.");
-    } else {
-        pauseBtn.textContent = "Пауза";
-        aiFeedback.textContent = "Продовжуємо!";
-        speak("Продовжуємо тренування.");
-    }
+    pauseBtn.textContent = isPaused ? "Продовжити" : "Пауза";
+    speak(isPaused ? "Пауза." : "Продовжуємо!");
 });
 
-// Завершення
 stopBtn.addEventListener('click', () => {
     stopWorkout();
-    speak("Тренування зупинено. Гарна робота!");
+    speak("Тренування завершено.");
 });
 
 function stopWorkout() {
     clearInterval(timerInterval);
-    pauseBtn.textContent = "Пауза";
     isPaused = false;
+    pauseBtn.textContent = "Пауза";
 }
