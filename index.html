@@ -5,58 +5,78 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Fit Trainer</title>
     <link rel="stylesheet" href="style.css">
+
+    <!-- MediaPipe Pose JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
 </head>
 <body>
-    <div class="container">
+    <div class="app-container">
         <header>
-            <h1>🏋️‍♀️ AI Fit Trainer</h1>
-            <p>Твій персональний онлайн-тренер</p>
+            <h1>AI Fit Trainer 🏋️‍♀️</h1>
+            <p>Персональний AI-тренер у твоєму смартфоні</p>
         </header>
 
-        <main>
-            <!-- Налаштування API Ключа -->
-            <section class="api-section">
-                <h2>🔑 Gemini API Key</h2>
-                <input type="password" id="apiKeyInput" placeholder="Вставити Ваш API Key">
-            </section>
+        <section class="setup-section card">
+            <h2>1. Вхідні дані</h2>
+            <div class="input-group">
+                <label for="apiKeyInput">Gemini API Key:</label>
+                <input type="password" id="apiKeyInput" placeholder="Введіть свій API Key...">
+            </div>
 
-            <!-- Секція завантаження скріншота -->
-            <section class="upload-section">
-                <h2>1. Завантаж скріншот вправи</h2>
-                <div class="drop-zone" id="dropZone">
-                    <p>Натисни або перетягни сюди фото вправи</p>
-                    <input type="file" id="imageInput" accept="image/*">
-                </div>
-                <div id="previewContainer" class="hidden">
-                    <img id="imagePreview" src="" alt="Прев'ю вправи">
-                </div>
-            </section>
+            <div class="upload-box" id="dropZone">
+                <input type="file" id="imageInput" accept="image/*" hidden>
+                <p>📸 Завантажити скріншот вправи</p>
+            </div>
+            
+            <div id="previewContainer" class="hidden">
+                <img id="imagePreview" src="" alt="Прев'ю вправи">
+            </div>
+        </section>
 
-            <!-- Налаштування тренера -->
-            <section class="settings-section">
-                <h2>2. Налаштування тренера</h2>
-                <div class="form-group">
-                    <label for="voiceSelect">Голос тренера:</label>
-                    <select id="voiceSelect">
-                        <option value="female">Жіночий (Енергійний)</option>
-                        <option value="male">Чоловічий (Строгий)</option>
-                    </select>
-                </div>
-                <button id="analyzeBtn" class="btn-primary" disabled>Аналізувати вправу (AI)</button>
-            </section>
+        <section class="trainer-settings card">
+            <h2>2. Налаштування тренера</h2>
+            <div class="input-group">
+                <label for="voiceSelect">Голос тренера:</label>
+                <select id="voiceSelect">
+                    <option value="female">Жіночий (Енергійний)</option>
+                    <option value="male">Чоловічий (Суворий)</option>
+                </select>
+            </div>
+            <button id="analyzeBtn" class="btn btn-primary" disabled>Аналізувати вправу (AI)</button>
+        </section>
 
-            <!-- Екран тренування -->
-            <section id="workoutScreen" class="workout-section hidden">
-                <h2 id="exerciseTitle">Аналізуємо...</h2>
-                <div class="timer-display" id="timer">00:00</div>
-                <div class="status-box" id="aiFeedback">Аналіз зображення...</div>
-                <div class="controls" style="margin-top: 15px;">
-                    <button id="pauseBtn" class="btn-secondary">Пауза</button>
-                    <button id="stopBtn" class="btn-danger" style="margin-top: 8px;">Завершити</button>
+        <section id="workoutScreen" class="workout-section card hidden">
+            <h2 id="exerciseTitle">Назва вправи</h2>
+            
+            <!-- Відео з камери та скелет -->
+            <div class="video-container" style="position: relative; width: 100%; max-width: 500px; margin: 0 auto;">
+                <video id="webcam" playsinline style="display: none;"></video>
+                <canvas id="outputCanvas" style="width: 100%; border-radius: 12px; background: #000;"></canvas>
+            </div>
+
+            <div class="stats-box" style="display: flex; justify-content: space-around; margin-top: 15px;">
+                <div class="stat-item">
+                    <span class="stat-label">Повторення:</span>
+                    <span id="repCount" style="font-size: 2rem; color: #4CAF50; font-weight: bold;">0</span>
                 </div>
-            </section>
-        </main>
+                <div class="stat-item">
+                    <span class="stat-label">Час:</span>
+                    <div id="timer" class="timer-display" style="font-size: 2rem; color: #ff4757;">00:00</div>
+                </div>
+            </div>
+
+            <div id="aiFeedback" class="feedback-box">
+                Увімкніть камеру та станьте так, щоб вас було видно в повний зріст.
+            </div>
+
+            <div class="controls">
+                <button id="pauseBtn" class="btn btn-secondary">Пауза</button>
+                <button id="stopBtn" class="btn btn-danger">Завершити</button>
+            </div>
+        </section>
     </div>
+
     <script src="app.js"></script>
 </body>
 </html>
