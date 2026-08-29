@@ -28,7 +28,7 @@ imageInput.addEventListener('change', (e) => {
             imagePreview.src = event.target.result;
             base64Image = event.target.result.split(',')[1];
             previewContainer.classList.remove('hidden');
-            analyzeBtn.disabled = false; // Розблоковуємо кнопку після вибору фото
+            analyzeBtn.disabled = false;
         };
         reader.readAsDataURL(file);
     }
@@ -53,18 +53,18 @@ analyzeBtn.addEventListener('click', async () => {
     }
 
     workoutScreen.classList.remove('hidden');
-    exerciseTitle.textContent = "Зчитування штучним інтелектом...";
-    aiFeedback.textContent = "Аналізуємо вправу зі скріншота...";
-    speak("Зараз я подивлюся на скріншот і розпізнаю вправу.");
+    exerciseTitle.textContent = "Аналізуємо...";
+    aiFeedback.textContent = "Зчитуємо зображення за допомогою AI...";
+    speak("Аналізую вправу зі скріншота.");
 
     try {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 contents: [{
                     parts: [
-                        { text: "Зроби короткий аналіз цієї вправи для тренування українською мовою. Відповідь дай чітко у форматі JSON із ключами: name (назва вправи), instruction (коротка порада з техніки до 15 слів), duration (рекомендована тривалість у секундах, тільки число, наприклад 30)." },
+                        { text: "Аналізуй зображення вправи. Відповідай виключно в чистому форматі JSON без маркдаун-тегов. Структура: {\"name\": \"назва вправи українською\", \"instruction\": \"коротка техніка до 15 слів\", \"duration\": 30}" },
                         { inline_data: { mime_type: "image/jpeg", data: base64Image } }
                     ]
                 }]
@@ -72,17 +72,24 @@ analyzeBtn.addEventListener('click', async () => {
         });
 
         const data = await response.json();
-        const rawText = data.candidates[0].content.parts[0].text;
-        const cleanJson = rawText.replace(/```json|```/g, "").trim();
-        const exerciseData = JSON.parse(cleanJson);
+        
+        if (data.error) {
+            throw new Error(data.error.message || "Помилка API");
+        }
 
+        let rawText = data.candidates[0].content.parts[0].text;
+        
+        // Очищення відповіді від markdown обгорток ```json ... ```
+        rawText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
+        
+        const exerciseData = JSON.parse(rawText);
         startWorkoutWithAI(exerciseData);
 
     } catch (error) {
-        console.error(error);
+        console.error("Деталі помилки:", error);
         exerciseTitle.textContent = "Помилка розпізнавання";
-        aiFeedback.textContent = "Не вдалося зчитати вправу. Перевірте API key та спробуйте ще раз.";
-        speak("Упсс, виникла помилка під час аналізу скріншота.");
+        aiFeedback.textContent = "Перевірте ключ API або завантажте інше фото.";
+        speak("Не вдалося розпізнати вправу. Перевірте API ключ.");
     }
 });
 
@@ -106,12 +113,12 @@ function startTimer(targetDuration) {
             updateTimerDisplay();
             
             if (secondsPassed === Math.floor(targetDuration / 2)) {
-                aiFeedback.textContent = "Половина шляху пройдена! Тримайся!";
-                speak("Половина вже позаду! Продовжуй у тому ж дусі!");
+                aiFeedback.textContent = "Половина шляху пройдена!";
+                speak("Половина вже позаду! Тримайся!");
             } else if (secondsPassed >= targetDuration) {
                 stopWorkout();
                 aiFeedback.textContent = "Чудова робота! Вправу виконано!";
-                speak("Стоп! Чудова робота, вправу виконано успішно!");
+                speak("Стоп! Вправу успішно виконано!");
             }
         }
     }, 1000);
@@ -119,7 +126,7 @@ function startTimer(targetDuration) {
 
 function updateTimerDisplay() {
     const mins = String(Math.floor(secondsPassed / 60)).padStart(2, '0');
-    const secs = String(secsPassed = secondsPassed % 60).padStart(2, '0');
+    const secs = String(secondsPassed % 60).padStart(2, '0');
     timerDisplay.textContent = `${mins}:${secs}`;
 }
 
