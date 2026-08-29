@@ -1,75 +1,28 @@
-/* Перемикач вкладок */
-.app-tabs {
-    display: flex;
+/* Стилі для сітки статистики */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
     gap: 10px;
-    background: var(--card-bg);
-    padding: 6px;
-    border-radius: 16px;
-    border: 1px solid var(--border-color);
-}
-
-.tab-btn {
-    flex: 1;
-    padding: 10px;
-    border: none;
-    border-radius: 12px;
-    background: transparent;
-    color: var(--text-muted);
-    font-weight: 600;
-    cursor: pointer;
-    transition: 0.2s ease;
-}
-
-.tab-btn.active {
-    background: linear-gradient(135deg, var(--accent-purple), var(--accent-pink));
-    color: #fff;
-}
-
-.tab-content {
-    display: none;
-    flex-direction: column;
-    gap: 20px;
-}
-
-.tab-content.active {
-    display: flex;
-}
-
-/* Картки у бібліотеці */
-.library-list {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
     margin-top: 10px;
 }
 
-.exercise-card {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+.stat-card {
     background: #110f1a;
     border: 1px solid var(--border-color);
-    padding: 12px 15px;
     border-radius: 14px;
+    padding: 15px 10px;
+    text-align: center;
 }
 
-.exercise-info h4 {
+.stat-num {
+    display: block;
+    font-size: 1.5rem;
+    font-weight: 800;
     color: #fff;
-    font-size: 1rem;
-    margin-bottom: 4px;
 }
 
-.exercise-info p {
+.stat-desc {
+    font-size: 0.75rem;
     color: var(--text-muted);
-    font-size: 0.8rem;
-}
-
-.btn-start-mini {
-    padding: 8px 14px;
-    border-radius: 10px;
-    border: none;
-    background: var(--accent-purple);
-    color: #fff;
-    font-weight: 600;
-    cursor: pointer;
+    margin-top: 4px;
 }
