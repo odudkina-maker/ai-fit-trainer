@@ -21,6 +21,7 @@
         <nav class="app-tabs">
             <button class="tab-btn active" data-tab="tab-scan">📸 Сканер</button>
             <button class="tab-btn" data-tab="tab-library">📚 Бібліотека</button>
+            <button class="tab-btn" data-tab="tab-progress">📊 Прогрес</button>
         </nav>
 
         <!-- Вкладка 1: Сканер вправ -->
@@ -61,6 +62,35 @@
                 <h2>Моя бібліотека вправ</h2>
                 <div id="libraryList" class="library-list">
                     <p style="color: var(--text-muted); text-align: center;">Немає збережених вправ. Завантажте першу через сканер!</p>
+                </div>
+            </section>
+        </div>
+
+        <!-- Вкладка 3: Прогрес та Статистика -->
+        <div id="tab-progress" class="tab-content">
+            <section class="card">
+                <h2>Мой прогрес</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <span class="stat-num" id="statWorkouts">0</span>
+                        <span class="stat-desc">Тренування</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-num" id="statMinutes">0</span>
+                        <span class="stat-desc">Хвилин</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-num" id="statCalories" style="color: #ec4899;">0</span>
+                        <span class="stat-desc">Калорії 🔥</span>
+                    </div>
+                </div>
+
+                <div class="avatar-widget" style="margin-top: 15px;">
+                    <div class="avatar-icon">🔥</div>
+                    <div class="avatar-bubble">
+                        <strong>Чудова робота!</strong><br>
+                        Кожне тренування робить тебе сильніше та енергійніше!
+                    </div>
                 </div>
             </section>
         </div>
