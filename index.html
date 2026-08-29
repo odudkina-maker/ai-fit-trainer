@@ -17,47 +17,65 @@
             <p>Твій персональний AI-тренер у кишені</p>
         </header>
 
-        <section class="setup-section card">
-            <h2>1. Вхідні дані</h2>
-            <div class="input-group">
-                <label for="apiKeyInput">Gemini API Key:</label>
-                <input type="password" id="apiKeyInput" placeholder="Введіть свій API Key...">
-            </div>
+        <!-- Навігація по вкладках -->
+        <nav class="app-tabs">
+            <button class="tab-btn active" data-tab="tab-scan">📸 Сканер</button>
+            <button class="tab-btn" data-tab="tab-library">📚 Бібліотека</button>
+        </nav>
 
-            <div class="upload-box" id="dropZone">
-                <input type="file" id="imageInput" accept="image/*" hidden>
-                <p>📸 Завантажити скріншот вправи</p>
-            </div>
-            
-            <div id="previewContainer" class="hidden">
-                <img id="imagePreview" src="" alt="Прев'ю вправи">
-            </div>
-        </section>
+        <!-- Вкладка 1: Сканер вправ -->
+        <div id="tab-scan" class="tab-content active">
+            <section class="setup-section card">
+                <h2>1. Вхідні дані</h2>
+                <div class="input-group">
+                    <label for="apiKeyInput">Gemini API Key:</label>
+                    <input type="password" id="apiKeyInput" placeholder="Введіть свій API Key...">
+                </div>
 
-        <section class="trainer-settings card">
-            <h2>2. Налаштування тренера</h2>
-            <div class="input-group">
-                <label for="voiceSelect">Голос тренера:</label>
-                <select id="voiceSelect">
-                    <option value="female">Жіночий (Енергійний)</option>
-                    <option value="male">Чоловічий (Суворий)</option>
-                </select>
-            </div>
-            <button id="analyzeBtn" class="btn btn-primary" disabled>Аналізувати вправу (AI)</button>
-        </section>
+                <div class="upload-box" id="dropZone">
+                    <input type="file" id="imageInput" accept="image/*" hidden>
+                    <p>📸 Завантажити скріншот вправи</p>
+                </div>
+                
+                <div id="previewContainer" class="hidden">
+                    <img id="imagePreview" src="" alt="Прев'ю вправи">
+                </div>
+            </section>
 
+            <section class="trainer-settings card">
+                <h2>2. Налаштування тренера</h2>
+                <div class="input-group">
+                    <label for="voiceSelect">Голос тренера:</label>
+                    <select id="voiceSelect">
+                        <option value="female">Жіночий (Енергійний)</option>
+                        <option value="male">Чоловічий (Суворий)</option>
+                    </select>
+                </div>
+                <button id="analyzeBtn" class="btn btn-primary" disabled>Аналізувати вправу (AI)</button>
+            </section>
+        </div>
+
+        <!-- Вкладка 2: Бібліотека вправ -->
+        <div id="tab-library" class="tab-content">
+            <section class="card">
+                <h2>Моя бібліотека вправ</h2>
+                <div id="libraryList" class="library-list">
+                    <p style="color: var(--text-muted); text-align: center;">Немає збережених вправ. Завантажте першу через сканер!</p>
+                </div>
+            </section>
+        </div>
+
+        <!-- Екран тренування (з камери) -->
         <section id="workoutScreen" class="workout-section card hidden">
             <h2 id="exerciseTitle">Назва вправи</h2>
 
-            <!-- Віджет з аватаром і підказками -->
             <div class="avatar-widget">
-                <div class="avatar-icon">👩‍🏫</div>
+                <div id="avatarIcon" class="avatar-icon">👩‍🏫</div>
                 <div id="aiFeedback" class="avatar-bubble">
                     Увімкніть камеру та станьте так, щоб вас було видно в повний зріст.
                 </div>
             </div>
             
-            <!-- Відео з камери та скелет -->
             <div class="video-container">
                 <video id="webcam" playsinline style="display: none;"></video>
                 <canvas id="outputCanvas"></canvas>
