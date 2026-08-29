@@ -14,6 +14,12 @@
         </header>
 
         <main>
+            <!-- Налаштування API Ключа -->
+            <section class="api-section">
+                <h2>🔑 Gemini API Key</h2>
+                <input type="password" id="apiKeyInput" placeholder="Вставити Ваш API Key">
+            </section>
+
             <!-- Секція завантаження скріншота -->
             <section class="upload-section">
                 <h2>1. Завантаж скріншот вправи</h2>
@@ -36,17 +42,17 @@
                         <option value="male">Чоловічий (Строгий)</option>
                     </select>
                 </div>
-                <button id="startBtn" class="btn-primary" disabled>Розпочати тренування</button>
+                <button id="analyzeBtn" class="btn-primary" disabled>Аналізувати вправу (AI)</button>
             </section>
 
-            <!-- Екран тренування (холостий стан) -->
+            <!-- Екран тренування -->
             <section id="workoutScreen" class="workout-section hidden">
-                <h2 id="exerciseTitle">Назва вправи</h2>
+                <h2 id="exerciseTitle">Аналізуємо...</h2>
                 <div class="timer-display" id="timer">00:00</div>
-                <div class="status-box" id="aiFeedback">Очікування початку...</div>
-                <div class="controls">
+                <div class="status-box" id="aiFeedback">Аналіз зображення...</div>
+                <div class="controls" style="margin-top: 15px;">
                     <button id="pauseBtn" class="btn-secondary">Пауза</button>
-                    <button id="stopBtn" class="btn-danger">Завершити</button>
+                    <button id="stopBtn" class="btn-danger" style="margin-top: 8px;">Завершити</button>
                 </div>
             </section>
         </main>
