@@ -10,9 +10,11 @@ const workoutScreen = document.getElementById('workoutScreen');
 const exerciseTitle = document.getElementById('exerciseTitle');
 const timerDisplay = document.getElementById('timer');
 const aiFeedback = document.getElementById('aiFeedback');
+const avatarIcon = document.getElementById('avatarIcon');
 const pauseBtn = document.getElementById('pauseBtn');
 const stopBtn = document.getElementById('stopBtn');
 const repCountDisplay = document.getElementById('repCount');
+const libraryList = document.getElementById('libraryList');
 
 const videoElement = document.getElementById('webcam');
 const canvasElement = document.getElementById('outputCanvas');
@@ -30,6 +32,9 @@ let exerciseStage = "up";
 let lastVoiceTime = 0;
 let audioCtx = null;
 
+// Завантаження бібліотеки вправ із локальної пам'яті
+let exerciseLibrary = JSON.parse(localStorage.getItem('fitmae_library')) || [];
+
 const motivationalPhrases = [
     "Давай, давай! Вже бачу, як жир на попі тане!",
     "Працюємо на результат! Молодчина!",
@@ -40,7 +45,21 @@ const motivationalPhrases = [
     "Не філонь, дотискай до кінця!"
 ];
 
-// Ініціалізація та розблокування Web Audio API під час кліку
+// Перемикач вкладок
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        
+        btn.classList.add('active');
+        document.getElementById(btn.dataset.tab).classList.add('active');
+
+        if (btn.dataset.tab === 'tab-library') {
+            renderLibrary();
+        }
+    });
+});
+
 function initAudioContext() {
     if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -50,14 +69,12 @@ function initAudioContext() {
     }
 }
 
-// Генератор звукових сигналів (біпів)
 function playBeep(type = 'start') {
     initAudioContext();
     if (!audioCtx) return;
 
     try {
         if (type === 'start') {
-            // Подвійний чіткий біп для початку
             [0, 0.18].forEach(delay => {
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
@@ -71,7 +88,6 @@ function playBeep(type = 'start') {
                 osc.stop(audioCtx.currentTime + delay + 0.12);
             });
         } else if (type === 'finish') {
-            // Урочистий фінішний сигнал
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.type = 'sine';
@@ -85,7 +101,7 @@ function playBeep(type = 'start') {
             osc.stop(audioCtx.currentTime + 0.6);
         }
     } catch (e) {
-        console.error("Помилка відтворення звуку:", e);
+        console.error(e);
     }
 }
 
@@ -115,15 +131,14 @@ function speak(text, force = false) {
         utterance.lang = 'uk-UA';
 
         const isMale = voiceSelect.value === 'male';
-        
-        // Спроба вибрати чоловічий чи жіночий системний голос
+        avatarIcon.textContent = isMale ? "👨‍🏫" : "👩‍🏫";
+
         const voices = window.speechSynthesis.getVoices();
         const ukrVoice = voices.find(v => v.lang.includes('uk'));
         if (ukrVoice) utterance.voice = ukrVoice;
 
-        // Виразніші налаштування для чоловічого/жіночого тембру
         utterance.rate = isMale ? 0.95 : 1.05;
-        utterance.pitch = isMale ? 0.65 : 1.3; // 0.65 дає глибокий чоловічий тональний тембр
+        utterance.pitch = isMale ? 0.65 : 1.3;
 
         window.speechSynthesis.speak(utterance);
         lastVoiceTime = now;
@@ -145,7 +160,6 @@ function calculateAngle(a, b, c) {
 }
 
 analyzeBtn.addEventListener('click', async () => {
-    // Активація аудіо при першому натисканні користувача
     initAudioContext();
 
     const apiKey = apiKeyInput.value.trim();
@@ -180,6 +194,7 @@ analyzeBtn.addEventListener('click', async () => {
         rawText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
         const exerciseData = JSON.parse(rawText);
 
+        saveToLibrary(exerciseData);
         startWorkoutWithAI(exerciseData);
 
     } catch (error) {
@@ -190,16 +205,47 @@ analyzeBtn.addEventListener('click', async () => {
     }
 });
 
+function saveToLibrary(data) {
+    const exists = exerciseLibrary.some(item => item.name === data.name);
+    if (!exists) {
+        exerciseLibrary.push(data);
+        localStorage.setItem('fitmae_library', JSON.stringify(exerciseLibrary));
+    }
+}
+
+function renderLibrary() {
+    if (exerciseLibrary.length === 0) {
+        libraryList.innerHTML = `<p style="color: var(--text-muted); text-align: center;">Немає збережених вправ. Завантажте першу через сканер!</p>`;
+        return;
+    }
+
+    libraryList.innerHTML = exerciseLibrary.map((item, index) => `
+        <div class="exercise-card">
+            <div class="exercise-info">
+                <h4>${item.name}</h4>
+                <p>Таймер: ${item.duration} сек</p>
+            </div>
+            <button class="btn-start-mini" onclick="startFromLibrary(${index})">Старт ▶</button>
+        </div>
+    `).join('');
+}
+
+window.startFromLibrary = function(index) {
+    const item = exerciseLibrary[index];
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    
+    workoutScreen.classList.remove('hidden');
+    startWorkoutWithAI(item);
+};
+
 function startWorkoutWithAI(data) {
     exerciseTitle.textContent = data.name;
     aiFeedback.textContent = data.instruction;
     repCount = 0;
     repCountDisplay.textContent = repCount;
 
-    // Звуковий сигнал під час старту
     playBeep('start');
-
-    // Голосовий детальний інструктаж перед початком
     const introSpeech = `Вправу розпізнано: ${data.name}. Як виконувати: ${data.instruction}. Ставайте перед камерою і починаємо!`;
     speak(introSpeech, true);
     
@@ -252,7 +298,6 @@ function onPoseResults(results) {
         if (hip && knee && ankle) {
             const kneeAngle = calculateAngle(hip, knee, ankle);
 
-            // Малювання суглобів
             canvasCtx.beginPath();
             canvasCtx.moveTo(hip.x * canvasElement.width, hip.y * canvasElement.height);
             canvasCtx.lineTo(knee.x * canvasElement.width, knee.y * canvasElement.height);
