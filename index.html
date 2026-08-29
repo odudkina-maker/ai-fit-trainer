@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Fit Trainer</title>
+    <title>FITMAE — AI Fit Trainer</title>
     <link rel="stylesheet" href="style.css">
 
     <!-- MediaPipe Pose JS -->
@@ -13,8 +13,8 @@
 <body>
     <div class="app-container">
         <header>
-            <h1>AI Fit Trainer 🏋️‍♀️</h1>
-            <p>Персональний AI-тренер у твоєму смартфоні</p>
+            <h1>FITMAE 🏋️‍♀️</h1>
+            <p>Твій персональний AI-тренер у кишені</p>
         </header>
 
         <section class="setup-section card">
@@ -48,26 +48,30 @@
 
         <section id="workoutScreen" class="workout-section card hidden">
             <h2 id="exerciseTitle">Назва вправи</h2>
+
+            <!-- Віджет з аватаром і підказками -->
+            <div class="avatar-widget">
+                <div class="avatar-icon">👩‍🏫</div>
+                <div id="aiFeedback" class="avatar-bubble">
+                    Увімкніть камеру та станьте так, щоб вас було видно в повний зріст.
+                </div>
+            </div>
             
             <!-- Відео з камери та скелет -->
-            <div class="video-container" style="position: relative; width: 100%; max-width: 500px; margin: 0 auto;">
+            <div class="video-container">
                 <video id="webcam" playsinline style="display: none;"></video>
-                <canvas id="outputCanvas" style="width: 100%; border-radius: 12px; background: #000;"></canvas>
+                <canvas id="outputCanvas"></canvas>
             </div>
 
-            <div class="stats-box" style="display: flex; justify-content: space-around; margin-top: 15px;">
+            <div class="stats-box">
                 <div class="stat-item">
-                    <span class="stat-label">Повторення:</span>
-                    <span id="repCount" style="font-size: 2rem; color: #4CAF50; font-weight: bold;">0</span>
+                    <span class="stat-label">Повторення</span>
+                    <span id="repCount" class="stat-value" style="color: #10b981;">0</span>
                 </div>
                 <div class="stat-item">
-                    <span class="stat-label">Час:</span>
-                    <div id="timer" class="timer-display" style="font-size: 2rem; color: #ff4757;">00:00</div>
+                    <span class="stat-label">Таймер</span>
+                    <div id="timer" class="stat-value" style="color: #ec4899;">00:00</div>
                 </div>
-            </div>
-
-            <div id="aiFeedback" class="feedback-box">
-                Увімкніть камеру та станьте так, щоб вас було видно в повний зріст.
             </div>
 
             <div class="controls">
