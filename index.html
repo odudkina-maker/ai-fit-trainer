@@ -9,6 +9,9 @@
     <!-- MediaPipe Pose JS -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+
+    <!-- Three.js для 3D Аватара -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
     <div class="app-container">
@@ -69,7 +72,7 @@
         <!-- Вкладка 3: Прогрес та Статистика -->
         <div id="tab-progress" class="tab-content">
             <section class="card">
-                <h2>Мой прогрес</h2>
+                <h2>Мій прогрес</h2>
                 <div class="stats-grid">
                     <div class="stat-card">
                         <span class="stat-num" id="statWorkouts">0</span>
@@ -99,8 +102,9 @@
         <section id="workoutScreen" class="workout-section card hidden">
             <h2 id="exerciseTitle">Назва вправи</h2>
 
+            <!-- 3D Аватар і підказки -->
             <div class="avatar-widget">
-                <div id="avatarIcon" class="avatar-icon">👩‍🏫</div>
+                <div id="avatar3DContainer" class="avatar-3d-container"></div>
                 <div id="aiFeedback" class="avatar-bubble">
                     Увімкніть камеру та станьте так, щоб вас було видно в повний зріст.
                 </div>
