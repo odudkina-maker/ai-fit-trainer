@@ -58,13 +58,17 @@ analyzeBtn.addEventListener('click', async () => {
     speak("Аналізую вправу зі скріншота.");
 
     try {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+        // Запит адаптований під новий тип ключів AQ.
+        const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'x-goog-api-key': apiKey
+            },
             body: JSON.stringify({
                 contents: [{
                     parts: [
-                        { text: "Аналізуй зображення вправи. Відповідай виключно в чистому форматі JSON без маркдаун-тегов. Структура: {\"name\": \"назва вправи українською\", \"instruction\": \"коротка техніка до 15 слів\", \"duration\": 30}" },
+                        { text: "Аналізуй зображення вправи. Відповідай виключно у чистому форматі JSON без маркдаун-тегів. Формат: {\"name\": \"назва вправи українською\", \"instruction\": \"коротка техніка до 15 слів\", \"duration\": 30}" },
                         { inline_data: { mime_type: "image/jpeg", data: base64Image } }
                     ]
                 }]
@@ -79,16 +83,16 @@ analyzeBtn.addEventListener('click', async () => {
 
         let rawText = data.candidates[0].content.parts[0].text;
         
-        // Очищення відповіді від markdown обгорток ```json ... ```
+        // Очищення відповіді від ```json ... ```
         rawText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
         
         const exerciseData = JSON.parse(rawText);
         startWorkoutWithAI(exerciseData);
 
     } catch (error) {
-        console.error("Деталі помилки:", error);
+        console.error("Помилка:", error);
         exerciseTitle.textContent = "Помилка розпізнавання";
-        aiFeedback.textContent = "Перевірте ключ API або завантажте інше фото.";
+        aiFeedback.textContent = error.message || "Не вдалося зчитати вправу. Перевірте API key.";
         speak("Не вдалося розпізнати вправу. Перевірте API ключ.");
     }
 });
