@@ -1,48 +1,78 @@
-/* Стилі для сітки статистики */
-.stats-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-    margin-top: 10px;
+:root {
+    --bg-color: #0f172a;
+    --card-bg: #1e293b;
+    --accent-color: #8b5cf6;
+    --accent-hover: #7c3aed;
+    --pink-accent: #ec4899;
+    --text-color: #f8fafc;
+    --text-muted: #94a3b8;
+    --border-color: #334155;
+    --success-color: #10b981;
+    --danger-color: #ef4444;
 }
 
-.stat-card {
-    background: #110f1a;
-    border: 1px solid var(--border-color);
-    border-radius: 14px;
-    padding: 15px 10px;
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    padding: 20px 15px;
+    display: flex;
+    justify-content: center;
+    min-height: 100vh;
+}
+
+.app-container {
+    width: 100%;
+    max-width: 500px;
+}
+
+header {
     text-align: center;
+    margin-bottom: 20px;
 }
 
-.stat-num {
-    display: block;
-    font-size: 1.5rem;
-    font-weight: 800;
+header h1 {
+    font-size: 2rem;
+    color: var(--pink-accent);
+}
+
+header p {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+/* Навігація вкладок */
+.app-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 12px;
+    background: var(--card-bg);
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.tab-btn.active {
+    background: var(--accent-color);
     color: #fff;
 }
 
-.stat-desc {
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    margin-top: 4px;
-}
-/* 3D Контейнер для Аватара */
-.avatar-3d-container {
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    overflow: hidden;
-    background: linear-gradient(135deg, #ec4899, #8b5cf6);
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.avatar-3d-container canvas {
-    width: 100% !important;
-    height: 100% !important;
-}
+/* Контент вкладок */
 .tab-content {
     display: none;
 }
@@ -51,3 +81,256 @@
     display: block;
 }
 
+/* Картки */
+.card {
+    background-color: var(--card-bg);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 20px;
+    border: 1px solid var(--border-color);
+}
+
+.card h2 {
+    font-size: 1.1rem;
+    margin-bottom: 15px;
+    color: var(--text-color);
+}
+
+.input-group {
+    margin-bottom: 15px;
+}
+
+.input-group label {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-bottom: 5px;
+}
+
+.input-group input, .input-group select {
+    width: 100%;
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    outline: none;
+    font-size: 0.95rem;
+}
+
+/* Зона завантаження */
+.upload-box {
+    border: 2px dashed var(--accent-color);
+    border-radius: 12px;
+    padding: 25px;
+    text-align: center;
+    cursor: pointer;
+    background-color: rgba(139, 92, 246, 0.05);
+}
+
+.upload-box p {
+    color: var(--accent-color);
+    font-weight: 600;
+}
+
+#previewContainer {
+    margin-top: 15px;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+#imagePreview {
+    width: 100%;
+    max-height: 250px;
+    object-fit: cover;
+    display: block;
+}
+
+/* Кнопки */
+.btn {
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 12px;
+    font-weight: bold;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-primary {
+    background-color: var(--accent-color);
+    color: white;
+}
+
+.btn-secondary {
+    background-color: var(--border-color);
+    color: white;
+}
+
+.btn-danger {
+    background-color: var(--danger-color);
+    color: white;
+}
+
+/* Віджет 3D тренера */
+.avatar-widget {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(255, 255, 255, 0.03);
+    padding: 12px;
+    border-radius: 14px;
+    border: 1px solid var(--border-color);
+    margin-bottom: 15px;
+}
+
+.avatar-3d-container {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: linear-gradient(135deg, #ec4899, #8b5cf6);
+    flex-shrink: 0;
+}
+
+.avatar-3d-container canvas {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.avatar-icon {
+    width: 45px;
+    height: 45px;
+    background: var(--accent-color);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.avatar-bubble {
+    font-size: 0.85rem;
+    line-height: 1.3;
+    color: var(--text-color);
+}
+
+/* Відео і Камера */
+.video-container {
+    position: relative;
+    width: 100%;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #000;
+    margin-bottom: 15px;
+    aspect-ratio: 4/3;
+}
+
+#outputCanvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    transform: scaleX(-1); /* Дзеркальне відображення */
+}
+
+/* Статистика */
+.stats-box {
+    display: flex;
+    justify-content: space-around;
+    background: var(--bg-color);
+    padding: 12px;
+    border-radius: 12px;
+    margin-bottom: 15px;
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-label {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.stat-value {
+    font-size: 1.4rem;
+    font-weight: bold;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+
+.stat-card {
+    background: var(--bg-color);
+    padding: 15px 10px;
+    border-radius: 12px;
+    text-align: center;
+}
+
+.stat-num {
+    display: block;
+    font-size: 1.4rem;
+    font-weight: bold;
+    color: var(--accent-color);
+}
+
+.stat-desc {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+/* Список бібліотеки */
+.library-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.exercise-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--bg-color);
+    padding: 12px 15px;
+    border-radius: 10px;
+}
+
+.exercise-info h4 {
+    font-size: 0.95rem;
+    margin-bottom: 3px;
+}
+
+.exercise-info p {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.btn-start-mini {
+    background: var(--accent-color);
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+
+.controls {
+    display: flex;
+    gap: 10px;
+}
+
+.hidden {
+    display: none !important;
+}
