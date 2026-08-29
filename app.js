@@ -28,10 +28,11 @@ let pose = null;
 let repCount = 0;
 let exerciseStage = "up";
 let lastVoiceTime = 0;
+let audioCtx = null;
 
 const motivationalPhrases = [
     "Давай, давай! Вже бачу, як жир на попі тане!",
-    "Красуня! Працюємо на результат!",
+    "Працюємо на результат! Молодчина!",
     "Ще трішки, не здавайся!",
     "Ідеально! Твоє тіло скаже тобі дякую!",
     "Оце так техніка! Просто вогонь!",
@@ -39,38 +40,49 @@ const motivationalPhrases = [
     "Не філонь, дотискай до кінця!"
 ];
 
-// Генератор звукових сигналів (Web Audio API)
+// Ініціалізація та розблокування Web Audio API під час кліку
+function initAudioContext() {
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+}
+
+// Генератор звукових сигналів (біпів)
 function playBeep(type = 'start') {
+    initAudioContext();
+    if (!audioCtx) return;
+
     try {
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        
         if (type === 'start') {
-            // Подвійний високий біп для початку (880 Гц)
-            [0, 0.15].forEach(delay => {
+            // Подвійний чіткий біп для початку
+            [0, 0.18].forEach(delay => {
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
                 osc.type = 'sine';
                 osc.frequency.setValueAtTime(880, audioCtx.currentTime + delay);
-                gain.gain.setValueAtTime(0.1, audioCtx.currentTime + delay);
-                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + delay + 0.1);
+                gain.gain.setValueAtTime(0.2, audioCtx.currentTime + delay);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + delay + 0.12);
                 osc.connect(gain);
                 gain.connect(audioCtx.destination);
                 osc.start(audioCtx.currentTime + delay);
-                osc.stop(audioCtx.currentTime + delay + 0.1);
+                osc.stop(audioCtx.currentTime + delay + 0.12);
             });
         } else if (type === 'finish') {
-            // Довгий низький/перехідний біп для завершення
+            // Урочистий фінішний сигнал
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.type = 'sine';
-            osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); // До (C5)
-            osc.frequency.exponentialRampToValueAtTime(659.25, audioCtx.currentTime + 0.4); // Мі (E5)
-            gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+            osc.frequency.setValueAtTime(523.25, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(783.99, audioCtx.currentTime + 0.5);
+            gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.6);
             osc.connect(gain);
             gain.connect(audioCtx.destination);
             osc.start(audioCtx.currentTime);
-            osc.stop(audioCtx.currentTime + 0.5);
+            osc.stop(audioCtx.currentTime + 0.6);
         }
     } catch (e) {
         console.error("Помилка відтворення звуку:", e);
@@ -101,9 +113,18 @@ function speak(text, force = false) {
         window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'uk-UA';
-        utterance.rate = 1.05;
-        utterance.pitch = voiceSelect.value === 'female' ? 1.25 : 0.85;
+
+        const isMale = voiceSelect.value === 'male';
         
+        // Спроба вибрати чоловічий чи жіночий системний голос
+        const voices = window.speechSynthesis.getVoices();
+        const ukrVoice = voices.find(v => v.lang.includes('uk'));
+        if (ukrVoice) utterance.voice = ukrVoice;
+
+        // Виразніші налаштування для чоловічого/жіночого тембру
+        utterance.rate = isMale ? 0.95 : 1.05;
+        utterance.pitch = isMale ? 0.65 : 1.3; // 0.65 дає глибокий чоловічий тональний тембр
+
         window.speechSynthesis.speak(utterance);
         lastVoiceTime = now;
     }
@@ -124,6 +145,9 @@ function calculateAngle(a, b, c) {
 }
 
 analyzeBtn.addEventListener('click', async () => {
+    // Активація аудіо при першому натисканні користувача
+    initAudioContext();
+
     const apiKey = apiKeyInput.value.trim();
     if (!apiKey) {
         alert("Будь ласка, введіть свій Gemini API Key!");
@@ -133,7 +157,7 @@ analyzeBtn.addEventListener('click', async () => {
     workoutScreen.classList.remove('hidden');
     exerciseTitle.textContent = "Аналізуємо...";
     aiFeedback.textContent = "Зчитуємо зображення за допомогою AI...";
-    speak("Так-так, дивимося на вашу вправу...", true);
+    speak("Так-так, вивчаю вашу вправу зі скріншота.", true);
 
     try {
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
@@ -142,7 +166,7 @@ analyzeBtn.addEventListener('click', async () => {
             body: JSON.stringify({
                 contents: [{
                     parts: [
-                        { text: "Аналізуй зображення вправи. Відповідай виключно у чистому форматі JSON без маркдаун-тегів. Формат: {\"name\": \"назва вправи українською\", \"instruction\": \"коротка техніка до 15 слів\", \"duration\": 45}" },
+                        { text: "Аналізуй зображення вправи. Відповідай виключно у чистому форматі JSON без маркдаун-тегів. Формат: {\"name\": \"назва вправи українською\", \"instruction\": \"детальна інструкція виконання з 25-35 слів українською мовою\", \"duration\": 45}" },
                         { inline_data: { mime_type: "image/jpeg", data: base64Image } }
                     ]
                 }]
@@ -172,9 +196,12 @@ function startWorkoutWithAI(data) {
     repCount = 0;
     repCountDisplay.textContent = repCount;
 
-    // Звуковий сигнал старту
+    // Звуковий сигнал під час старту
     playBeep('start');
-    speak(`Чудово! Зчитуємо ${data.name}. Ставайте перед камерою та починаємо працювати!`, true);
+
+    // Голосовий детальний інструктаж перед початком
+    const introSpeech = `Вправу розпізнано: ${data.name}. Як виконувати: ${data.instruction}. Ставайте перед камерою і починаємо!`;
+    speak(introSpeech, true);
     
     startTimer(data.duration || 45);
     initPoseDetection();
@@ -225,6 +252,7 @@ function onPoseResults(results) {
         if (hip && knee && ankle) {
             const kneeAngle = calculateAngle(hip, knee, ankle);
 
+            // Малювання суглобів
             canvasCtx.beginPath();
             canvasCtx.moveTo(hip.x * canvasElement.width, hip.y * canvasElement.height);
             canvasCtx.lineTo(knee.x * canvasElement.width, knee.y * canvasElement.height);
@@ -276,10 +304,9 @@ function startTimer(targetDuration) {
 
             if (secondsPassed >= targetDuration) {
                 stopWorkout();
-                // Звуковий сигнал фінішу
                 playBeep('finish');
-                aiFeedback.textContent = `Час! Зроблено ${repCount} повторень. Ти просто зірка! 🔥`;
-                speak(`Стоп! Тренування закінчено! Зроблено ${repCount} повторень. Ти просто зірка!`, true);
+                aiFeedback.textContent = `Час! Зроблено ${repCount} повторень. Чудова робота! 🔥`;
+                speak(`Стоп! Тренування закінчено! Ви зробили ${repCount} повторень. Відмінний результат!`, true);
             }
         }
     }, 1000);
@@ -294,13 +321,13 @@ function updateTimerDisplay() {
 pauseBtn.addEventListener('click', () => {
     isPaused = !isPaused;
     pauseBtn.textContent = isPaused ? "Продовжити" : "Пауза";
-    speak(isPaused ? "Пауза. Відпочинь і попий водички." : "Погнали далі!", true);
+    speak(isPaused ? "Пауза. Перепочиньте." : "Продовжуємо тренування!", true);
 });
 
 stopBtn.addEventListener('click', () => {
     stopWorkout();
     playBeep('finish');
-    speak("Тренування завершено! Відпочивай!", true);
+    speak("Тренування завершено!", true);
 });
 
 function stopWorkout() {
