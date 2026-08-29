@@ -43,4 +43,11 @@
     width: 100% !important;
     height: 100% !important;
 }
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
 
