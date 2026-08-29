@@ -12,11 +12,23 @@ const timerDisplay = document.getElementById('timer');
 const aiFeedback = document.getElementById('aiFeedback');
 const pauseBtn = document.getElementById('pauseBtn');
 const stopBtn = document.getElementById('stopBtn');
+const repCountDisplay = document.getElementById('repCount');
+
+const videoElement = document.getElementById('webcam');
+const canvasElement = document.getElementById('outputCanvas');
+const canvasCtx = canvasElement.getContext('2d');
 
 let timerInterval = null;
 let secondsPassed = 0;
 let isPaused = false;
 let base64Image = "";
+let camera = null;
+let pose = null;
+
+// Трекінг повторень
+let repCount = 0;
+let exerciseStage = "up"; // "up" або "down"
+let lastVoiceTime = 0;
 
 dropZone.addEventListener('click', () => imageInput.click());
 
@@ -34,7 +46,11 @@ imageInput.addEventListener('change', (e) => {
     }
 });
 
-function speak(text) {
+function speak(text, force = false) {
+    const now = Date.now();
+    // Обмеження: підказки голосом не частіше ніж раз на 3 секунди
+    if (!force && now - lastVoiceTime < 3000) return;
+    
     if ('speechSynthesis' in window) {
         window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(text);
@@ -42,7 +58,18 @@ function speak(text) {
         utterance.rate = 1.0;
         utterance.pitch = voiceSelect.value === 'female' ? 1.2 : 0.8;
         window.speechSynthesis.speak(utterance);
+        lastVoiceTime = now;
     }
+}
+
+// Розрахунок кута між трьома точками тіла
+function calculateAngle(a, b, c) {
+    const radians = Math.atan2(c.y - b.y, c.x - b.x) - Math.atan2(a.y - b.y, a.x - b.x);
+    let angle = Math.abs((radians * 180.0) / Math.PI);
+    if (angle > 180.0) {
+        angle = 360 - angle;
+    }
+    return angle;
 }
 
 analyzeBtn.addEventListener('click', async () => {
@@ -55,19 +82,16 @@ analyzeBtn.addEventListener('click', async () => {
     workoutScreen.classList.remove('hidden');
     exerciseTitle.textContent = "Аналізуємо...";
     aiFeedback.textContent = "Зчитуємо зображення за допомогою AI...";
-    speak("Аналізую вправу зі скріншота.");
+    speak("Аналізую вправу зі скріншота.", true);
 
     try {
-        // Запит до актуальної моделі gemini-3.6-flash
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
             method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 contents: [{
                     parts: [
-                        { text: "Аналізуй зображення вправи. Відповідай виключно у чистому форматі JSON без маркдаун-тегів. Формат: {\"name\": \"назва вправи українською\", \"instruction\": \"коротка техніка до 15 слів\", \"duration\": 30}" },
+                        { text: "Аналізуй зображення вправи. Відповідай виключно у чистому форматі JSON без маркдаун-тегів. Формат: {\"name\": \"назва вправи українською\", \"instruction\": \"коротка техніка до 15 слів\", \"duration\": 45}" },
                         { inline_data: { mime_type: "image/jpeg", data: base64Image } }
                     ]
                 }]
@@ -75,52 +99,122 @@ analyzeBtn.addEventListener('click', async () => {
         });
 
         const data = await response.json();
-        
-        if (data.error) {
-            throw new Error(data.error.message || "Помилка API");
-        }
+        if (data.error) throw new Error(data.error.message);
 
         let rawText = data.candidates[0].content.parts[0].text;
-        
         rawText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
-        
         const exerciseData = JSON.parse(rawText);
+
         startWorkoutWithAI(exerciseData);
 
     } catch (error) {
-        console.error("Помилка:", error);
+        console.error(error);
         exerciseTitle.textContent = "Помилка розпізнавання";
-        aiFeedback.textContent = error.message || "Не вдалося зчитати вправу. Перевірте API key.";
-        speak("Не вдалося розпізнати вправу. Перевірте API ключ.");
+        aiFeedback.textContent = error.message || "Не вдалося зчитати вправу.";
+        speak("Помилка зчитування.", true);
     }
 });
 
 function startWorkoutWithAI(data) {
     exerciseTitle.textContent = data.name;
     aiFeedback.textContent = data.instruction;
+    repCount = 0;
+    repCountDisplay.textContent = repCount;
+
+    speak(`Вправу розпізнано! Це ${data.name}. Увімкніть камеру. Починаємо!`, true);
     
-    speak(`Вправу розпізнано! Це ${data.name}. ${data.instruction}. Починаємо!`);
-    
-    startTimer(data.duration || 30);
+    startTimer(data.duration || 45);
+    initPoseDetection();
+}
+
+// Налаштування комп'ютерного зору MediaPipe Pose
+function initPoseDetection() {
+    pose = new Pose({
+        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+    });
+
+    pose.setOptions({
+        modelComplexity: 1,
+        smoothLandmarks: true,
+        minDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.5
+    });
+
+    pose.onResults(onPoseResults);
+
+    camera = new Camera(videoElement, {
+        onFrame: async () => {
+            if (!isPaused && pose) {
+                await pose.send({ image: videoElement });
+            }
+        },
+        width: 640,
+        height: 480
+    });
+
+    camera.start();
+}
+
+function onPoseResults(results) {
+    canvasElement.width = videoElement.videoWidth || 640;
+    canvasElement.height = videoElement.videoHeight || 480;
+
+    canvasCtx.save();
+    canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+    canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+    if (results.poseLandmarks) {
+        const landmarks = results.poseLandmarks;
+
+        // Ключові точки: Стегно(24), Коліно(26), Щиколотка(28) - ліва/права нога
+        const hip = landmarks[24];
+        const knee = landmarks[26];
+        const ankle = landmarks[28];
+
+        if (hip && knee && ankle) {
+            const kneeAngle = calculateAngle(hip, knee, ankle);
+
+            // Візуалізація лінії коліна
+            canvasCtx.beginPath();
+            canvasCtx.moveTo(hip.x * canvasElement.width, hip.y * canvasElement.height);
+            canvasCtx.lineTo(knee.x * canvasElement.width, knee.y * canvasElement.height);
+            canvasCtx.lineTo(ankle.x * canvasElement.width, ankle.y * canvasElement.height);
+            canvasCtx.lineWidth = 4;
+            canvasCtx.strokeStyle = '#4CAF50';
+            canvasCtx.stroke();
+
+            // Логіка підрахунку повторень (присідання / випади)
+            if (kneeAngle < 100 && exerciseStage === "up") {
+                exerciseStage = "down";
+                aiFeedback.textContent = "Чудово! Опускайся ще трохи.";
+            }
+
+            if (kneeAngle > 160 && exerciseStage === "down") {
+                exerciseStage = "up";
+                repCount++;
+                repCountDisplay.textContent = repCount;
+                aiFeedback.textContent = `Зараховано! Повторення: ${repCount}`;
+                speak(`${repCount}`);
+            }
+        }
+    }
+    canvasCtx.restore();
 }
 
 function startTimer(targetDuration) {
     clearInterval(timerInterval);
     secondsPassed = 0;
     updateTimerDisplay();
-    
+
     timerInterval = setInterval(() => {
         if (!isPaused) {
             secondsPassed++;
             updateTimerDisplay();
-            
-            if (secondsPassed === Math.floor(targetDuration / 2)) {
-                aiFeedback.textContent = "Половина шляху пройдена!";
-                speak("Половина вже позаду! Тримайся!");
-            } else if (secondsPassed >= targetDuration) {
+
+            if (secondsPassed >= targetDuration) {
                 stopWorkout();
-                aiFeedback.textContent = "Чудова робота! Вправу виконано!";
-                speak("Стоп! Вправу успішно виконано!");
+                aiFeedback.textContent = `Час вийшов! Ви зробили ${repCount} повторень!`;
+                speak(`Час вийшов! Чудова робота, зроблено ${repCount} повторень!`, true);
             }
         }
     }, 1000);
@@ -135,16 +229,17 @@ function updateTimerDisplay() {
 pauseBtn.addEventListener('click', () => {
     isPaused = !isPaused;
     pauseBtn.textContent = isPaused ? "Продовжити" : "Пауза";
-    speak(isPaused ? "Пауза." : "Продовжуємо!");
+    speak(isPaused ? "Пауза." : "Продовжуємо!", true);
 });
 
 stopBtn.addEventListener('click', () => {
     stopWorkout();
-    speak("Тренування завершено.");
+    speak("Тренування завершено.", true);
 });
 
 function stopWorkout() {
     clearInterval(timerInterval);
+    if (camera) camera.stop();
     isPaused = false;
     pauseBtn.textContent = "Пауза";
 }
