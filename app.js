@@ -10,7 +10,6 @@ const workoutScreen = document.getElementById('workoutScreen');
 const exerciseTitle = document.getElementById('exerciseTitle');
 const timerDisplay = document.getElementById('timer');
 const aiFeedback = document.getElementById('aiFeedback');
-const avatarIcon = document.getElementById('avatarIcon');
 const pauseBtn = document.getElementById('pauseBtn');
 const stopBtn = document.getElementById('stopBtn');
 const repCountDisplay = document.getElementById('repCount');
@@ -32,6 +31,9 @@ let exerciseStage = "up";
 let lastVoiceTime = 0;
 let audioCtx = null;
 
+// 3D Змінні
+let scene, camera3D, renderer, avatarMesh;
+
 let exerciseLibrary = JSON.parse(localStorage.getItem('fitmae_library')) || [];
 let userStats = JSON.parse(localStorage.getItem('fitmae_stats')) || { workouts: 0, minutes: 0, calories: 0 };
 
@@ -44,6 +46,69 @@ const motivationalPhrases = [
     "Палає? Значить працює!",
     "Не філонь, дотискай до кінця!"
 ];
+
+// Ініціалізація 3D-тренера
+function init3DAvatar() {
+    const container = document.getElementById('avatar3DContainer');
+    if (!container || scene) return;
+
+    scene = new THREE.Scene();
+    camera3D = new THREE.PerspectiveCamera(50, 1, 0.1, 1000);
+    camera3D.position.z = 2.5;
+
+    renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    renderer.setSize(60, 60);
+    container.appendChild(renderer.domElement);
+
+    // Створення стилізованого 3D-персонажа (Голова та тіло)
+    const group = new THREE.Group();
+
+    // Голова
+    const headGeo = new THREE.SphereGeometry(0.5, 32, 32);
+    const headMat = new THREE.MeshStandardMaterial({ color: 0xffdbac, roughness: 0.3 });
+    const head = new THREE.Mesh(headGeo, headMat);
+    head.position.y = 0.3;
+    group.add(head);
+
+    // Очі
+    const eyeGeo = new THREE.SphereGeometry(0.06, 16, 16);
+    const eyeMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+    const eyeLeft = new THREE.Mesh(eyeGeo, eyeMat);
+    eyeLeft.position.set(-0.15, 0.38, 0.42);
+    const eyeRight = new THREE.Mesh(eyeGeo, eyeMat);
+    eyeRight.position.set(0.15, 0.38, 0.42);
+    group.add(eyeLeft);
+    group.add(eyeRight);
+
+    // Тіло (Футболка)
+    const bodyGeo = new THREE.CylinderGeometry(0.4, 0.5, 0.8, 32);
+    const bodyMat = new THREE.MeshStandardMaterial({ color: 0x8b5cf6 });
+    const body = new THREE.Mesh(bodyGeo, bodyMat);
+    body.position.y = -0.4;
+    group.add(body);
+
+    avatarMesh = group;
+    scene.add(avatarMesh);
+
+    // Освітлення
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+    scene.add(ambientLight);
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+    dirLight.position.set(2, 2, 2);
+    scene.add(dirLight);
+
+    // Анімація обертання та погодування
+    function animate() {
+        requestAnimationFrame(animate);
+        if (avatarMesh) {
+            avatarMesh.rotation.y += 0.01;
+            avatarMesh.position.y = Math.sin(Date.now() * 0.003) * 0.05;
+        }
+        renderer.render(scene, camera3D);
+    }
+    animate();
+}
 
 // Перемикач вкладок
 document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -130,8 +195,6 @@ function speak(text, force = false) {
         utterance.lang = 'uk-UA';
 
         const isMale = voiceSelect.value === 'male';
-        avatarIcon.textContent = isMale ? "👨‍🏫" : "👩‍🏫";
-
         const voices = window.speechSynthesis.getVoices();
         const ukrVoice = voices.find(v => v.lang.includes('uk'));
         if (ukrVoice) utterance.voice = ukrVoice;
@@ -168,6 +231,7 @@ analyzeBtn.addEventListener('click', async () => {
     }
 
     workoutScreen.classList.remove('hidden');
+    init3DAvatar();
     exerciseTitle.textContent = "Аналізуємо...";
     aiFeedback.textContent = "Зчитуємо зображення за допомогою AI...";
     speak("Так-так, вивчаю вашу вправу зі скріншота.", true);
@@ -241,6 +305,7 @@ window.startFromLibrary = function(index) {
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
     
     workoutScreen.classList.remove('hidden');
+    init3DAvatar();
     startWorkoutWithAI(item);
 };
 
@@ -386,11 +451,10 @@ function stopWorkout() {
     isPaused = false;
     pauseBtn.textContent = "Пауза";
 
-    // Запис та збереження статистики
     if (secondsPassed > 5) {
         userStats.workouts += 1;
         userStats.minutes += secondsPassed;
-        userStats.calories += Math.round(repCount * 0.5 + (secondsPassed / 60) * 4); // приблизний підрахунок калорій
+        userStats.calories += Math.round(repCount * 0.5 + (secondsPassed / 60) * 4);
         localStorage.setItem('fitmae_stats', JSON.stringify(userStats));
     }
 }
