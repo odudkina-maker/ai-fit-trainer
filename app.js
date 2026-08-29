@@ -58,13 +58,20 @@ analyzeBtn.addEventListener('click', async () => {
     speak("Аналізую вправу зі скріншота.");
 
     try {
-        // Запит адаптований під новий тип ключів AQ.
-        const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent', {
+        // Підтримка для ключів AQ. та AIza
+        const headers = { 'Content-Type': 'application/json' };
+        let url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+
+        if (apiKey.startsWith('AQ.')) {
+            headers['Authorization'] = `Bearer ${apiKey}`;
+            headers['x-goog-api-key'] = apiKey;
+        } else {
+            url += `?key=${apiKey}`;
+        }
+
+        const response = await fetch(url, {
             method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'x-goog-api-key': apiKey
-            },
+            headers: headers,
             body: JSON.stringify({
                 contents: [{
                     parts: [
@@ -83,7 +90,7 @@ analyzeBtn.addEventListener('click', async () => {
 
         let rawText = data.candidates[0].content.parts[0].text;
         
-        // Очищення відповіді від ```json ... ```
+        // Очищення відповіді від markdown
         rawText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
         
         const exerciseData = JSON.parse(rawText);
