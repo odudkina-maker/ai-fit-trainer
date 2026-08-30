@@ -31,8 +31,8 @@ let exerciseStage = "up";
 let lastVoiceTime = 0;
 let audioCtx = null;
 
-// 3D Змінні
-let scene, camera3D, renderer, avatarMesh;
+// Three.js змінні
+let scene, camera3D, renderer, mixer, clock;
 
 let exerciseLibrary = JSON.parse(localStorage.getItem('fitmae_library')) || [];
 let userStats = JSON.parse(localStorage.getItem('fitmae_stats')) || { workouts: 0, minutes: 0, calories: 0 };
@@ -47,67 +47,66 @@ const motivationalPhrases = [
     "Не філонь, дотискай до кінця!"
 ];
 
-// Ініціалізація 3D-тренера
+// Ініціалізація 3D анімованого тренера
 function init3DAvatar() {
     const container = document.getElementById('avatar3DContainer');
-    if (!container || scene) return;
+    if (!container) return;
+    container.innerHTML = ''; // Очищаємо перед створенням
 
+    clock = new THREE.Clock();
     scene = new THREE.Scene();
-    camera3D = new THREE.PerspectiveCamera(50, 1, 0.1, 1000);
-    camera3D.position.z = 2.5;
+    
+    camera3D = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+    camera3D.position.set(0, 1.2, 2.5);
 
     renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-    renderer.setSize(60, 60);
+    renderer.setSize(80, 80);
+    renderer.setPixelRatio(window.devicePixelRatio);
     container.appendChild(renderer.domElement);
 
-    // Створення стилізованого 3D-персонажа (Голова та тіло)
-    const group = new THREE.Group();
-
-    // Голова
-    const headGeo = new THREE.SphereGeometry(0.5, 32, 32);
-    const headMat = new THREE.MeshStandardMaterial({ color: 0xffdbac, roughness: 0.3 });
-    const head = new THREE.Mesh(headGeo, headMat);
-    head.position.y = 0.3;
-    group.add(head);
-
-    // Очі
-    const eyeGeo = new THREE.SphereGeometry(0.06, 16, 16);
-    const eyeMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
-    const eyeLeft = new THREE.Mesh(eyeGeo, eyeMat);
-    eyeLeft.position.set(-0.15, 0.38, 0.42);
-    const eyeRight = new THREE.Mesh(eyeGeo, eyeMat);
-    eyeRight.position.set(0.15, 0.38, 0.42);
-    group.add(eyeLeft);
-    group.add(eyeRight);
-
-    // Тіло (Футболка)
-    const bodyGeo = new THREE.CylinderGeometry(0.4, 0.5, 0.8, 32);
-    const bodyMat = new THREE.MeshStandardMaterial({ color: 0x8b5cf6 });
-    const body = new THREE.Mesh(bodyGeo, bodyMat);
-    body.position.y = -0.4;
-    group.add(body);
-
-    avatarMesh = group;
-    scene.add(avatarMesh);
-
-    // Освітлення
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+    // Світло
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
     scene.add(ambientLight);
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
-    dirLight.position.set(2, 2, 2);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    dirLight.position.set(2, 4, 3);
     scene.add(dirLight);
 
-    // Анімація обертання та погодування
-    function animate() {
-        requestAnimationFrame(animate);
-        if (avatarMesh) {
-            avatarMesh.rotation.y += 0.01;
-            avatarMesh.position.y = Math.sin(Date.now() * 0.003) * 0.05;
+    // Завантаження 3D-моделі манекена-тренера з анімацією
+    const loader = new THREE.GLTFLoader();
+    // Використовуємо якісну анімовану модель персонажа з CDN
+    const modelUrl = 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/models/gltf/RobotExpressive/RobotExpressive.glb';
+
+    loader.load(modelUrl, (gltf) => {
+        const model = gltf.scene;
+        model.scale.set(0.28, 0.28, 0.28);
+        model.position.set(0, -0.6, 0);
+        scene.add(model);
+
+        // Налаштування анімацій
+        mixer = new THREE.AnimationMixer(model);
+        const animations = gltf.animations;
+
+        // Пошук анімації (привітання або діяльності)
+        const danceAnim = THREE.AnimationClip.findByName(animations, 'Dance') || animations[0];
+        if (danceAnim) {
+            const action = mixer.clipAction(danceAnim);
+            action.play();
         }
+
+        animate3D();
+    }, undefined, (error) => {
+        console.error("Помилка завантаження 3D моделі:", error);
+    });
+}
+
+function animate3D() {
+    requestAnimationFrame(animate3D);
+    const delta = clock.getDelta();
+    if (mixer) mixer.update(delta);
+    if (renderer && scene && camera3D) {
         renderer.render(scene, camera3D);
     }
-    animate();
 }
 
 // Перемикач вкладок
@@ -158,7 +157,7 @@ function playBeep(type = 'start') {
             osc.frequency.setValueAtTime(523.25, audioCtx.currentTime);
             osc.frequency.exponentialRampToValueAtTime(783.99, audioCtx.currentTime + 0.5);
             gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.6);
+            gain.gain.exponentialRampToValueAtTime(0.6, audioCtx.currentTime + 0.6);
             osc.connect(gain);
             gain.connect(audioCtx.destination);
             osc.start(audioCtx.currentTime);
@@ -243,7 +242,7 @@ analyzeBtn.addEventListener('click', async () => {
             body: JSON.stringify({
                 contents: [{
                     parts: [
-                        { text: "Аналізуй зображення вправи. Відповідай виключно у чистому форматі JSON без маркдаун-тегів. Формат: {\"name\": \"назва вправи українською\", \"instruction\": \"детальна інструкція виконання з 25-35 слів українською мовою\", \"duration\": 45}" },
+                        { text: "Аналізуй зображення вправи. Відповідай виключно у чистому формат format JSON без маркдаун-тегів. Формат: {\"name\": \"назва вправи українською\", \"instruction\": \"детальна інструкція виконання з 25-35 слів українською мовою\", \"duration\": 45}" },
                         { inline_data: { mime_type: "image/jpeg", data: base64Image } }
                     ]
                 }]
@@ -420,7 +419,7 @@ function startTimer(targetDuration) {
             if (secondsPassed >= targetDuration) {
                 stopWorkout();
                 playBeep('finish');
-                aiFeedback.textContent = `Час! Зроблено ${repCount} повторень. Чудова робота! 🔥`;
+                aiFeedback.textContent = `Час! Зробли ${repCount} повторень. Чудова робота! 🔥`;
                 speak(`Стоп! Тренування закінчено! Ви зробили ${repCount} повторень. Відмінний результат!`, true);
             }
         }
