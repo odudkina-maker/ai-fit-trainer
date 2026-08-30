@@ -10,27 +10,32 @@
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
 
-    <!-- Three.js + GLTFLoader для повноцінного 3D Тренера -->
+    <!-- Three.js + GLTFLoader + OrbitControls -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js" crossorigin="anonymous"></script>
 </head>
 <body>
     <div class="app-container">
         <header>
-            <h1>FITMAE 🏋️‍♀️</h1>
-            <p>Твій персональний AI-тренер у кишені</p>
+            <div class="brand">
+                <span class="logo-icon">🔮</span>
+                <div>
+                    <h1>FITMAE</h1>
+                    <p>Твій AI-тренер у кишені</p>
+                </div>
+            </div>
         </header>
 
         <!-- Навігація по вкладках -->
         <nav class="app-tabs">
-            <button class="tab-btn active" data-tab="tab-scan">📸 Сканер</button>
+            <button class="tab-btn active" data-tab="tab-scan">📸 Завантажити</button>
             <button class="tab-btn" data-tab="tab-library">📚 Бібліотека</button>
             <button class="tab-btn" data-tab="tab-progress">📊 Прогрес</button>
         </nav>
 
         <!-- Вкладка 1: Сканер вправ -->
         <div id="tab-scan" class="tab-content active">
-            <section class="setup-section card">
+            <section class="card">
                 <h2>1. Вхідні дані</h2>
                 <div class="input-group">
                     <label for="apiKeyInput">Gemini API Key:</label>
@@ -39,7 +44,9 @@
 
                 <div class="upload-box" id="dropZone">
                     <input type="file" id="imageInput" accept="image/*" hidden>
-                    <p>📸 Завантажити скріншот вправи</p>
+                    <div class="upload-icon">📸</div>
+                    <p><strong>Завантаж фото або скріншот</strong></p>
+                    <span>AI розпізнає вправу та створить 3D-тренування</span>
                 </div>
                 
                 <div id="previewContainer" class="hidden">
@@ -47,30 +54,30 @@
                 </div>
             </section>
 
-            <section class="trainer-settings card">
-                <h2>2. Налаштування тренера</h2>
+            <section class="card">
+                <h2>2. Тренер</h2>
                 <div class="input-group">
-                    <label for="voiceSelect">Голос тренера:</label>
+                    <label for="voiceSelect">Голос та стиль підказок:</label>
                     <select id="voiceSelect">
-                        <option value="female">Жіночий (Енергійний)</option>
+                        <option value="female">Жіночий (Енергійний & Дружній)</option>
                         <option value="male">Чоловічий (Суворий)</option>
                     </select>
                 </div>
-                <button id="analyzeBtn" class="btn btn-primary" disabled>Аналізувати вправу (AI)</button>
+                <button id="analyzeBtn" class="btn btn-primary" disabled>Створити 3D-тренування ✨</button>
             </section>
         </div>
 
         <!-- Вкладка 2: Бібліотека вправ -->
         <div id="tab-library" class="tab-content">
             <section class="card">
-                <h2>Моя бібліотека вправ</h2>
+                <h2>Моя бібліотека</h2>
                 <div id="libraryList" class="library-list">
-                    <p style="color: var(--text-muted); text-align: center;">Немає збережених вправ. Завантажте першу через сканер!</p>
+                    <p class="empty-msg">Немає збережених вправ. Завантажте першу через сканер!</p>
                 </div>
             </section>
         </div>
 
-        <!-- Вкладка 3: Прогрес та Статистика -->
+        <!-- Вкладка 3: Прогрес -->
         <div id="tab-progress" class="tab-content">
             <section class="card">
                 <h2>Мій прогрес</h2>
@@ -84,52 +91,71 @@
                         <span class="stat-desc">Хвилин</span>
                     </div>
                     <div class="stat-card">
-                        <span class="stat-num" id="statCalories" style="color: #ec4899;">0</span>
+                        <span class="stat-num accent-pink" id="statCalories">0</span>
                         <span class="stat-desc">Калорії 🔥</span>
                     </div>
                 </div>
 
-                <div class="avatar-widget" style="margin-top: 15px;">
-                    <div class="avatar-icon">🔥</div>
-                    <div class="avatar-bubble">
+                <div class="trainer-quote-card">
+                    <div class="quote-avatar">👩‍💼</div>
+                    <div class="quote-text">
                         <strong>Чудова робота!</strong><br>
-                        Кожне тренування робить тебе сильніше та енергійніше!
+                        Ти на 24% продуктивніше, ніж минулого тижня 🔥
                     </div>
                 </div>
             </section>
         </div>
 
-        <!-- Екран тренування (з камери) -->
-        <section id="workoutScreen" class="workout-section card hidden">
-            <h2 id="exerciseTitle">Назва вправи</h2>
-
-            <!-- 3D Аватар і підказки -->
-            <div class="avatar-widget">
-                <div id="avatar3DContainer" class="avatar-3d-container"></div>
-                <div id="aiFeedback" class="avatar-bubble">
-                    Увімкніть камеру та станьте так, щоб вас було видно в повний зріст.
+        <!-- Екран 3D Тренування (як на макеті) -->
+        <section id="workoutScreen" class="workout-screen hidden">
+            <!-- Верхня панель тренування -->
+            <div class="workout-header">
+                <button id="backBtn" class="icon-btn">✕</button>
+                <div class="workout-title-box">
+                    <span id="exerciseStep">Тренування 1 з 1</span>
+                    <h2 id="exerciseTitle">Присідання</h2>
                 </div>
-            </div>
-            
-            <div class="video-container">
-                <video id="webcam" playsinline style="display: none;"></video>
-                <canvas id="outputCanvas"></canvas>
-            </div>
-
-            <div class="stats-box">
-                <div class="stat-item">
-                    <span class="stat-label">Повторення</span>
-                    <span id="repCount" class="stat-value" style="color: #10b981;">0</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">Таймер</span>
-                    <div id="timer" class="stat-value" style="color: #ec4899;">00:00</div>
+                <div class="timer-badge">
+                    <span id="timer">45</span>
+                    <small>сек</small>
                 </div>
             </div>
 
-            <div class="controls">
-                <button id="pauseBtn" class="btn btn-secondary">Пауза</button>
-                <button id="stopBtn" class="btn btn-danger">Завершити</button>
+            <!-- Головний 3D Сцена з тренером -->
+            <div class="stage-3d-container">
+                <div id="threejs-canvas-container"></div>
+                
+                <!-- Плаваючі анімовані підказки тренера (Справа як на концепті) -->
+                <div class="floating-feedback-list">
+                    <div class="floating-card">
+                        <div class="mini-avatar">👩‍💼</div>
+                        <div class="floating-text" id="aiFeedback">Держи спину ровной! 🧘‍♀️</div>
+                    </div>
+                </div>
+
+                <!-- Відео з веб-камери (мініатюра знизу для перевірки себе) -->
+                <div class="user-cam-preview">
+                    <video id="webcam" playsinline style="display: none;"></video>
+                    <canvas id="outputCanvas"></canvas>
+                </div>
+            </div>
+
+            <!-- Нижня панель керування -->
+            <div class="workout-controls-bar">
+                <button id="pauseBtn" class="control-btn-circle">
+                    <span>⏸</span>
+                    <small>Пауза</small>
+                </button>
+
+                <div class="rep-counter-big">
+                    <span id="repCount">0</span>
+                    <small>повторень</small>
+                </div>
+
+                <button id="stopBtn" class="control-btn-circle danger">
+                    <span>⏹</span>
+                    <small>Завершити</small>
+                </button>
             </div>
         </section>
     </div>
