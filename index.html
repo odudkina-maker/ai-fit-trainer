@@ -10,7 +10,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
 
-    <!-- Three.js + GLTFLoader + OrbitControls -->
+    <!-- Three.js + GLTFLoader -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js" crossorigin="anonymous"></script>
 </head>
@@ -36,7 +36,7 @@
         <!-- Вкладка 1: Сканер вправ -->
         <div id="tab-scan" class="tab-content active">
             <section class="card">
-                <h2>1. Вхідні дані</h2>
+                <h2>1. Завантаження вправи</h2>
                 <div class="input-group">
                     <label for="apiKeyInput">Gemini API Key:</label>
                     <input type="password" id="apiKeyInput" placeholder="Введіть свій API Key...">
@@ -46,24 +46,14 @@
                     <input type="file" id="imageInput" accept="image/*" hidden>
                     <div class="upload-icon">📸</div>
                     <p><strong>Завантаж фото або скріншот</strong></p>
-                    <span>AI розпізнає вправу та створить 3D-тренування</span>
+                    <span>AI розпізнає вправу та підключить 3D-тренера</span>
                 </div>
                 
                 <div id="previewContainer" class="hidden">
                     <img id="imagePreview" src="" alt="Прев'ю вправи">
                 </div>
-            </section>
 
-            <section class="card">
-                <h2>2. Тренер</h2>
-                <div class="input-group">
-                    <label for="voiceSelect">Голос та стиль підказок:</label>
-                    <select id="voiceSelect">
-                        <option value="female">Жіночий (Енергійний & Дружній)</option>
-                        <option value="male">Чоловічий (Суворий)</option>
-                    </select>
-                </div>
-                <button id="analyzeBtn" class="btn btn-primary" disabled>Створити 3D-тренування ✨</button>
+                <button id="analyzeBtn" class="btn btn-primary" style="margin-top: 15px;" disabled>Створити 3D-тренування ✨</button>
             </section>
         </div>
 
@@ -106,9 +96,9 @@
             </section>
         </div>
 
-        <!-- Екран 3D Тренування (як на макеті) -->
+        <!-- Екран 3D Тренування -->
         <section id="workoutScreen" class="workout-screen hidden">
-            <!-- Верхня панель тренування -->
+            <!-- Верхня панель -->
             <div class="workout-header">
                 <button id="backBtn" class="icon-btn">✕</button>
                 <div class="workout-title-box">
@@ -121,26 +111,26 @@
                 </div>
             </div>
 
-            <!-- Головний 3D Сцена з тренером -->
+            <!-- 3D Сцена з дівчиною-тренером -->
             <div class="stage-3d-container">
                 <div id="threejs-canvas-container"></div>
                 
-                <!-- Плаваючі анімовані підказки тренера (Справа як на концепті) -->
+                <!-- Плаваючі підказки з прикольчиками -->
                 <div class="floating-feedback-list">
                     <div class="floating-card">
                         <div class="mini-avatar">👩‍💼</div>
-                        <div class="floating-text" id="aiFeedback">Держи спину ровной! 🧘‍♀️</div>
+                        <div class="floating-text" id="aiFeedback">Держи спину рівною, не філонь! 😉</div>
                     </div>
                 </div>
 
-                <!-- Відео з веб-камери (мініатюра знизу для перевірки себе) -->
+                <!-- Відео з веб-камери користувача -->
                 <div class="user-cam-preview">
                     <video id="webcam" playsinline style="display: none;"></video>
                     <canvas id="outputCanvas"></canvas>
                 </div>
             </div>
 
-            <!-- Нижня панель керування -->
+            <!-- Нижня панель -->
             <div class="workout-controls-bar">
                 <button id="pauseBtn" class="control-btn-circle">
                     <span>⏸</span>
