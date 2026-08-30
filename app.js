@@ -3,7 +3,6 @@ const dropZone = document.getElementById('dropZone');
 const previewContainer = document.getElementById('previewContainer');
 const imagePreview = document.getElementById('imagePreview');
 const analyzeBtn = document.getElementById('analyzeBtn');
-const voiceSelect = document.getElementById('voiceSelect');
 const apiKeyInput = document.getElementById('apiKeyInput');
 
 const workoutScreen = document.getElementById('workoutScreen');
@@ -33,20 +32,23 @@ let lastVoiceTime = 0;
 let audioCtx = null;
 
 // Three.js 3D Тренер
-let scene, camera3D, renderer, mixer, clock, trainerModel;
+let scene, camera3D, renderer, mixer, clock, femaleModel;
 
 let exerciseLibrary = JSON.parse(localStorage.getItem('fitmae_library')) || [];
 let userStats = JSON.parse(localStorage.getItem('fitmae_stats')) || { workouts: 0, minutes: 0, calories: 0 };
 
+// Енергійні підказки з гумором від дівчини-тренера
 const motivationalPhrases = [
-    "Чудово! Тримай спину рівною! 🧘‍♀️",
-    "Ще 5 повторень! Ти зможеш!",
-    "Ідеальна техніка! 🔥",
-    "Працюють сідниці та стегна!",
-    "Дотискай до кінця!"
+    "Оце так присідання! Твої сідниці передають привіт! 🍑",
+    "Не філонь! Я все бачу через свою 3D-магію! 😜",
+    "Палає? Значить жирок покидає чат! 🔥",
+    "Спинку рівно! Уяви, що ззаду стоїть твоя мрія! 💅",
+    "Ще трішки! Не здавайся, красуне!",
+    "Ідеальна техніка! Мені аж заздрісно стало! ✨",
+    "Дотискай! Прес і ніжки будуть просто вогонь!"
 ];
 
-// Ініціалізація повноформатної 3D Сцени тренера (Як у додатку)
+// Ініціалізація 3D Сцени з дівчиною-тренером
 function initFull3DScene() {
     const container = document.getElementById('threejs-canvas-container');
     if (!container) return;
@@ -60,7 +62,7 @@ function initFull3DScene() {
     const height = container.clientHeight || window.innerHeight;
 
     camera3D = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
-    camera3D.position.set(0, 1.4, 3.2);
+    camera3D.position.set(0, 1.2, 2.8);
 
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(width, height);
@@ -68,48 +70,55 @@ function initFull3DScene() {
     renderer.shadowMap.enabled = true;
     container.appendChild(renderer.domElement);
 
-    // Освітлення (М'яке підсвічування кімнати)
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+    // М'яке фіолетово-рожеве світло (як у концепті)
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.1);
     scene.add(ambientLight);
 
-    const dirLight = new THREE.DirectionalLight(0xa855f7, 1.5);
-    dirLight.position.set(3, 5, 4);
+    const dirLight = new THREE.DirectionalLight(0xa855f7, 1.8);
+    dirLight.position.set(2, 4, 3);
     dirLight.castShadow = true;
     scene.add(dirLight);
 
-    const pointLight = new THREE.PointLight(0xec4899, 1, 10);
-    pointLight.position.set(-2, 2, 2);
-    scene.add(pointLight);
+    const pinkLight = new THREE.PointLight(0xec4899, 1.5, 10);
+    pinkLight.position.set(-2, 2, 2);
+    scene.add(pinkLight);
 
-    // Створення 3D Фітнес-килимка (Fitness Mat)
+    // 3D Килимок
     const matGeometry = new THREE.BoxGeometry(1.2, 0.02, 2);
-    const matMaterial = new THREE.MeshStandardMaterial({ color: 0x261f3b, roughness: 0.4 });
+    const matMaterial = new THREE.MeshStandardMaterial({ color: 0x261f3b, roughness: 0.5 });
     const mat = new THREE.Mesh(matGeometry, matMaterial);
     mat.position.set(0, -0.01, 0);
     mat.receiveShadow = true;
     scene.add(mat);
 
-    // Завантаження 3D Анімованого Тренера
+    // 3D Модель дівчини-тренера (Michelle / Mixamo 3D Girl Character)
     const loader = new THREE.GLTFLoader();
-    const modelUrl = 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/models/gltf/RobotExpressive/RobotExpressive.glb';
+    const girlModelUrl = 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/models/gltf/Michelle.glb';
 
-    loader.load(modelUrl, (gltf) => {
-        trainerModel = gltf.scene;
-        trainerModel.scale.set(0.35, 0.35, 0.35);
-        trainerModel.position.set(0, 0, 0);
-        scene.add(trainerModel);
+    loader.load(girlModelUrl, (gltf) => {
+        femaleModel = gltf.scene;
+        femaleModel.scale.set(0.95, 0.95, 0.95);
+        femaleModel.position.set(0, 0, 0);
+        
+        femaleModel.traverse((child) => {
+            if (child.isMesh) {
+                child.castShadow = true;
+                child.receiveShadow = true;
+            }
+        });
 
-        mixer = new THREE.AnimationMixer(trainerModel);
-        const animations = gltf.animations;
+        scene.add(femaleModel);
 
-        // Почати анімацію руху тренера
-        const danceAnim = THREE.AnimationClip.findByName(animations, 'Dance') || animations[0];
-        if (danceAnim) {
-            const action = mixer.clipAction(danceAnim);
+        // Підключаємо анімацію
+        if (gltf.animations && gltf.animations.length > 0) {
+            mixer = new THREE.AnimationMixer(femaleModel);
+            const action = mixer.clipAction(gltf.animations[0]);
             action.play();
         }
 
         animate3D();
+    }, undefined, (err) => {
+        console.error("Помилка завантаження 3D моделі дівчини:", err);
     });
 
     window.addEventListener('resize', onWindowResize);
@@ -218,13 +227,13 @@ function speak(text, force = false) {
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'uk-UA';
 
-        const isMale = voiceSelect.value === 'male';
+        // За замовчуванням жіночий енергійний голос
         const voices = window.speechSynthesis.getVoices();
         const ukrVoice = voices.find(v => v.lang.includes('uk'));
         if (ukrVoice) utterance.voice = ukrVoice;
 
-        utterance.rate = isMale ? 0.95 : 1.05;
-        utterance.pitch = isMale ? 0.65 : 1.3;
+        utterance.rate = 1.05;
+        utterance.pitch = 1.25;
 
         window.speechSynthesis.speak(utterance);
         lastVoiceTime = now;
@@ -253,8 +262,8 @@ analyzeBtn.addEventListener('click', async () => {
     setTimeout(initFull3DScene, 100);
 
     exerciseTitle.textContent = "Аналізуємо...";
-    aiFeedback.textContent = "AI розпізнає вправу...";
-    speak("Так-так, вивчаю вашу вправу зі скріншота.", true);
+    aiFeedback.textContent = "Привіт! Зараз вивчу твоє фото і покажу, як робити! 💅";
+    speak("Привіт! Зачекай секунду, розбираю твоє фото вправи.", true);
 
     try {
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
@@ -263,7 +272,7 @@ analyzeBtn.addEventListener('click', async () => {
             body: JSON.stringify({
                 contents: [{
                     parts: [
-                        { text: "Аналізуй зображення вправи. Відповідай виключно у чистому форматі JSON без маркдаун-тегів. Формат: {\"name\": \"назва вправи українською\", \"instruction\": \"детальна інструкція виконання з 20-30 слів українською мовою\", \"duration\": 45}" },
+                        { text: "Аналізуй зображення вправи. Відповідай виключно у чистому форматі JSON без маркдаун-тегів. Формат: {\"name\": \"назва вправи українською\", \"instruction\": \"детальна інструкція виконання з 20-30 слів українською мовою з елементами підбадьорення\", \"duration\": 45}" },
                         { inline_data: { mime_type: "image/jpeg", data: base64Image } }
                     ]
                 }]
@@ -283,8 +292,8 @@ analyzeBtn.addEventListener('click', async () => {
     } catch (error) {
         console.error(error);
         exerciseTitle.textContent = "Помилка";
-        aiFeedback.textContent = "Не вдалося зчитати вправу.";
-        speak("Упс, щось пішло не так при розпізнаванні.", true);
+        aiFeedback.textContent = "Ой, не вдалося зчитати фото. Спробуй інше!";
+        speak("Ой, щось не вийшло розпізнати фото. Спробуємо ще раз?", true);
     }
 });
 
@@ -333,7 +342,7 @@ function startWorkoutWithAI(data) {
     repCountDisplay.textContent = repCount;
 
     playBeep('start');
-    speak(`Починаємо вправу ${data.name}. 3D тренер показує техніку.`, true);
+    speak(`Починаємо ${data.name}! Дивись на мене і повторюй!`, true);
     
     startTimer(data.duration || 45);
     initPoseDetection();
@@ -385,7 +394,7 @@ function onPoseResults(results) {
 
             if (kneeAngle < 105 && exerciseStage === "up") {
                 exerciseStage = "down";
-                aiFeedback.textContent = "Нижче! Тримай рівновагу!";
+                aiFeedback.textContent = "Нижче присідай! Не лінуйся! 😉";
             }
 
             if (kneeAngle > 155 && exerciseStage === "down") {
@@ -416,8 +425,8 @@ function startTimer(targetDuration) {
             if (remaining <= 0) {
                 stopWorkout();
                 playBeep('finish');
-                aiFeedback.textContent = `Фініш! Зроблено ${repCount} повторень! 🎉`;
-                speak(`Стоп! Тренування закінчено! Ви зробили ${repCount} повторень!`, true);
+                aiFeedback.textContent = `Вау! Зроблено ${repCount} повторень! Ти просто зірка! 🌟`;
+                speak(`Стоп! Тренування закінчено! Ви зробили ${repCount} повторень! Разом ми сила!`, true);
             }
         }
     }, 1000);
@@ -430,7 +439,7 @@ function updateTimerDisplay(sec) {
 pauseBtn.addEventListener('click', () => {
     isPaused = !isPaused;
     pauseBtn.querySelector('span').textContent = isPaused ? "▶" : "⏸";
-    speak(isPaused ? "Пауза" : "Продовжуємо!", true);
+    speak(isPaused ? "Відпочиваємо пару секунд!" : "Погнали далі!", true);
 });
 
 stopBtn.addEventListener('click', () => {
