@@ -31,16 +31,16 @@ let exerciseStage = "up";
 let lastVoiceTime = 0;
 let audioCtx = null;
 
-// Three.js 3D Тренер
-let scene, camera3D, renderer, mixer, clock, femaleModel;
+// Three.js 3D Тренерка
+let scene, camera3D, renderer, clock;
+let femaleAvatarGroup, bodyParts = {};
 
 let exerciseLibrary = JSON.parse(localStorage.getItem('fitmae_library')) || [];
 let userStats = JSON.parse(localStorage.getItem('fitmae_stats')) || { workouts: 0, minutes: 0, calories: 0 };
 
-// Енергійні підказки з гумором від дівчини-тренера
 const motivationalPhrases = [
-    "Оце так присідання! Твої сідниці передають привіт! 🍑",
-    "Не філонь! Я все бачу через свою 3D-магію! 😜",
+    "Оце так присідання! Сідниці передають привіт! 🍑",
+    "Не філонь! Я все бачу! 😜",
     "Палає? Значить жирок покидає чат! 🔥",
     "Спинку рівно! Уяви, що ззаду стоїть твоя мрія! 💅",
     "Ще трішки! Не здавайся, красуне!",
@@ -48,7 +48,110 @@ const motivationalPhrases = [
     "Дотискай! Прес і ніжки будуть просто вогонь!"
 ];
 
-// Ініціалізація 3D Сцени з дівчиною-тренером
+// Побудова стилізованої 3D дівчини-тренерки
+function createFemaleAvatar() {
+    femaleAvatarGroup = new THREE.Group();
+
+    // Матеріали (спортивний топ та легінси як у FITMAE)
+    const skinMat = new THREE.MeshStandardMaterial({ color: 0xffdbac, roughness: 0.6 });
+    const hairMat = new THREE.MeshStandardMaterial({ color: 0x3d2314, roughness: 0.8 });
+    const clothTopMat = new THREE.MeshStandardMaterial({ color: 0xec4899, roughness: 0.4 }); // Рожевий топ
+    const clothLeggingsMat = new THREE.MeshStandardMaterial({ color: 0x1e1b4b, roughness: 0.5 }); // Темно-фіолетові лосини
+    const shoeMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3 });
+
+    // Голова та хвіст (зачіска)
+    const headGeo = new THREE.SphereGeometry(0.12, 32, 32);
+    const head = new THREE.Mesh(headGeo, skinMat);
+    head.position.y = 1.45;
+    femaleAvatarGroup.add(head);
+
+    const hairGeo = new THREE.SphereGeometry(0.13, 32, 32);
+    const hair = new THREE.Mesh(hairGeo, hairMat);
+    hair.position.set(0, 1.48, -0.02);
+    femaleAvatarGroup.add(hair);
+
+    const ponytailGeo = new THREE.CylinderGeometry(0.03, 0.06, 0.25, 16);
+    const ponytail = new THREE.Mesh(ponytailGeo, hairMat);
+    ponytail.rotation.x = -Math.PI / 4;
+    ponytail.position.set(0, 1.48, -0.16);
+    femaleAvatarGroup.add(ponytail);
+
+    // Торс (Спортивний топ)
+    const torsoGeo = new THREE.CylinderGeometry(0.11, 0.09, 0.35, 32);
+    const torso = new THREE.Mesh(torsoGeo, clothTopMat);
+    torso.position.y = 1.15;
+    torso.castShadow = true;
+    femaleAvatarGroup.add(torso);
+    bodyParts.torso = torso;
+
+    // Таз (Лосини)
+    const pelvisGeo = new THREE.CylinderGeometry(0.09, 0.12, 0.15, 32);
+    const pelvis = new THREE.Mesh(pelvisGeo, clothLeggingsMat);
+    pelvis.position.y = 0.92;
+    femaleAvatarGroup.add(pelvis);
+    bodyParts.pelvis = pelvis;
+
+    // Ноги (Стегна + Гомілки)
+    function createLeg(xOffset) {
+        const legGroup = new THREE.Group();
+        legGroup.position.set(xOffset, 0.85, 0);
+
+        const thighGeo = new THREE.CylinderGeometry(0.055, 0.045, 0.38, 16);
+        const thigh = new THREE.Mesh(thighGeo, clothLeggingsMat);
+        thigh.position.y = -0.19;
+        legGroup.add(thigh);
+
+        const shinGroup = new THREE.Group();
+        shinGroup.position.y = -0.38;
+
+        const shinGeo = new THREE.CylinderGeometry(0.045, 0.035, 0.38, 16);
+        const shin = new THREE.Mesh(shinGeo, clothLeggingsMat);
+        shin.position.y = -0.19;
+        shinGroup.add(shin);
+
+        const shoeGeo = new THREE.BoxGeometry(0.07, 0.06, 0.14);
+        const shoe = new THREE.Mesh(shoeGeo, shoeMat);
+        shoe.position.set(0, -0.4, 0.03);
+        shinGroup.add(shoe);
+
+        legGroup.add(shinGroup);
+        return { legGroup, shinGroup, thigh };
+    }
+
+    const leftLeg = createLeg(-0.08);
+    const rightLeg = createLeg(0.08);
+    femaleAvatarGroup.add(leftLeg.legGroup);
+    femaleAvatarGroup.add(rightLeg.legGroup);
+
+    bodyParts.leftLeg = leftLeg;
+    bodyParts.rightLeg = rightLeg;
+
+    // Руки
+    function createArm(xOffset) {
+        const armGroup = new THREE.Group();
+        armGroup.position.set(xOffset, 1.28, 0);
+
+        const armGeo = new THREE.CylinderGeometry(0.035, 0.03, 0.35, 16);
+        const arm = new THREE.Mesh(armGeo, skinMat);
+        arm.position.y = -0.17;
+        armGroup.add(arm);
+
+        return armGroup;
+    }
+
+    const leftArm = createArm(-0.15);
+    const rightArm = createArm(0.15);
+    leftArm.rotation.z = Math.PI / 8;
+    rightArm.rotation.z = -Math.PI / 8;
+    femaleAvatarGroup.add(leftArm);
+    femaleAvatarGroup.add(rightArm);
+    bodyParts.leftArm = leftArm;
+    bodyParts.rightArm = rightArm;
+
+    scene.add(femaleAvatarGroup);
+}
+
+// 3D Сцена
 function initFull3DScene() {
     const container = document.getElementById('threejs-canvas-container');
     if (!container) return;
@@ -56,13 +159,13 @@ function initFull3DScene() {
 
     clock = new THREE.Clock();
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x080611);
+    scene.background = new THREE.Color(0x0b0914);
 
     const width = container.clientWidth || window.innerWidth;
     const height = container.clientHeight || window.innerHeight;
 
     camera3D = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
-    camera3D.position.set(0, 1.2, 2.8);
+    camera3D.position.set(0, 1.1, 2.7);
 
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(width, height);
@@ -70,11 +173,11 @@ function initFull3DScene() {
     renderer.shadowMap.enabled = true;
     container.appendChild(renderer.domElement);
 
-    // М'яке фіолетово-рожеве світло (як у концепті)
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.1);
+    // Світло
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
     scene.add(ambientLight);
 
-    const dirLight = new THREE.DirectionalLight(0xa855f7, 1.8);
+    const dirLight = new THREE.DirectionalLight(0xa855f7, 2.0);
     dirLight.position.set(2, 4, 3);
     dirLight.castShadow = true;
     scene.add(dirLight);
@@ -84,43 +187,17 @@ function initFull3DScene() {
     scene.add(pinkLight);
 
     // 3D Килимок
-    const matGeometry = new THREE.BoxGeometry(1.2, 0.02, 2);
+    const matGeometry = new THREE.BoxGeometry(1.2, 0.02, 1.8);
     const matMaterial = new THREE.MeshStandardMaterial({ color: 0x261f3b, roughness: 0.5 });
     const mat = new THREE.Mesh(matGeometry, matMaterial);
     mat.position.set(0, -0.01, 0);
     mat.receiveShadow = true;
     scene.add(mat);
 
-    // 3D Модель дівчини-тренера (Michelle / Mixamo 3D Girl Character)
-    const loader = new THREE.GLTFLoader();
-    const girlModelUrl = 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/models/gltf/Michelle.glb';
+    // Створюємо 3D тренерку
+    createFemaleAvatar();
 
-    loader.load(girlModelUrl, (gltf) => {
-        femaleModel = gltf.scene;
-        femaleModel.scale.set(0.95, 0.95, 0.95);
-        femaleModel.position.set(0, 0, 0);
-        
-        femaleModel.traverse((child) => {
-            if (child.isMesh) {
-                child.castShadow = true;
-                child.receiveShadow = true;
-            }
-        });
-
-        scene.add(femaleModel);
-
-        // Підключаємо анімацію
-        if (gltf.animations && gltf.animations.length > 0) {
-            mixer = new THREE.AnimationMixer(femaleModel);
-            const action = mixer.clipAction(gltf.animations[0]);
-            action.play();
-        }
-
-        animate3D();
-    }, undefined, (err) => {
-        console.error("Помилка завантаження 3D моделі дівчини:", err);
-    });
-
+    animate3D();
     window.addEventListener('resize', onWindowResize);
 }
 
@@ -134,10 +211,33 @@ function onWindowResize() {
     renderer.setSize(width, height);
 }
 
+// Плавна анімація присідання 3D-тренерки
 function animate3D() {
     requestAnimationFrame(animate3D);
-    const delta = clock.getDelta();
-    if (mixer) mixer.update(delta);
+
+    const time = clock.getElapsedTime();
+    // Цикл присідання кожні 3 секунди
+    const squatProgress = (Math.sin(time * 2.2) + 1) / 2; 
+
+    if (femaleAvatarGroup && bodyParts.leftLeg) {
+        // Опускання тазу
+        femaleAvatarGroup.position.y = -squatProgress * 0.35;
+
+        // Згинання стегон і колін
+        bodyParts.leftLeg.legGroup.rotation.x = -squatProgress * 1.1;
+        bodyParts.rightLeg.legGroup.rotation.x = -squatProgress * 1.1;
+
+        bodyParts.leftLeg.shinGroup.rotation.x = squatProgress * 1.2;
+        bodyParts.rightLeg.shinGroup.rotation.x = squatProgress * 1.2;
+
+        // Нахил корпусу вперед
+        bodyParts.torso.rotation.x = squatProgress * 0.3;
+
+        // Руки витягуються вперед для балансу
+        bodyParts.leftArm.rotation.x = -squatProgress * 1.2;
+        bodyParts.rightArm.rotation.x = -squatProgress * 1.2;
+    }
+
     if (renderer && scene && camera3D) {
         renderer.render(scene, camera3D);
     }
@@ -227,7 +327,6 @@ function speak(text, force = false) {
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'uk-UA';
 
-        // За замовчуванням жіночий енергійний голос
         const voices = window.speechSynthesis.getVoices();
         const ukrVoice = voices.find(v => v.lang.includes('uk'));
         if (ukrVoice) utterance.voice = ukrVoice;
@@ -272,7 +371,7 @@ analyzeBtn.addEventListener('click', async () => {
             body: JSON.stringify({
                 contents: [{
                     parts: [
-                        { text: "Аналізуй зображення вправи. Відповідай виключно у чистому форматі JSON без маркдаун-тегів. Формат: {\"name\": \"назва вправи українською\", \"instruction\": \"детальна інструкція виконання з 20-30 слів українською мовою з елементами підбадьорення\", \"duration\": 45}" },
+                        { text: "Аналізуй зображення вправи. Відповідай виключно у чистому форматі JSON без маркдаун-тегів. Формат: {\"name\": \"назва вправи українською\", \"instruction\": \"детальна інструкція виконання з 20-30 слів українською мовою\", \"duration\": 45}" },
                         { inline_data: { mime_type: "image/jpeg", data: base64Image } }
                     ]
                 }]
@@ -426,7 +525,7 @@ function startTimer(targetDuration) {
                 stopWorkout();
                 playBeep('finish');
                 aiFeedback.textContent = `Вау! Зроблено ${repCount} повторень! Ти просто зірка! 🌟`;
-                speak(`Стоп! Тренування закінчено! Ви зробили ${repCount} повторень! Разом ми сила!`, true);
+                speak(`Стоп! Тренування закінчено! Ви зробили ${repCount} повторень!`, true);
             }
         }
     }, 1000);
