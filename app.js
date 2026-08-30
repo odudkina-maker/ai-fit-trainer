@@ -12,6 +12,7 @@ const timerDisplay = document.getElementById('timer');
 const aiFeedback = document.getElementById('aiFeedback');
 const pauseBtn = document.getElementById('pauseBtn');
 const stopBtn = document.getElementById('stopBtn');
+const backBtn = document.getElementById('backBtn');
 const repCountDisplay = document.getElementById('repCount');
 const libraryList = document.getElementById('libraryList');
 
@@ -31,63 +32,77 @@ let exerciseStage = "up";
 let lastVoiceTime = 0;
 let audioCtx = null;
 
-// Three.js змінні
-let scene, camera3D, renderer, mixer, clock;
+// Three.js 3D Тренер
+let scene, camera3D, renderer, mixer, clock, trainerModel;
 
 let exerciseLibrary = JSON.parse(localStorage.getItem('fitmae_library')) || [];
 let userStats = JSON.parse(localStorage.getItem('fitmae_stats')) || { workouts: 0, minutes: 0, calories: 0 };
 
 const motivationalPhrases = [
-    "Давай, давай! Вже бачу, як жир на попі тане!",
-    "Працюємо на результат! Молодчина!",
-    "Ще трішки, не здавайся!",
-    "Ідеально! Твоє тіло скаже тобі дякую!",
-    "Оце так техніка! Просто вогонь!",
-    "Палає? Значить працює!",
-    "Не філонь, дотискай до кінця!"
+    "Чудово! Тримай спину рівною! 🧘‍♀️",
+    "Ще 5 повторень! Ти зможеш!",
+    "Ідеальна техніка! 🔥",
+    "Працюють сідниці та стегна!",
+    "Дотискай до кінця!"
 ];
 
-// Ініціалізація 3D анімованого тренера
-function init3DAvatar() {
-    const container = document.getElementById('avatar3DContainer');
+// Ініціалізація повноформатної 3D Сцени тренера (Як у додатку)
+function initFull3DScene() {
+    const container = document.getElementById('threejs-canvas-container');
     if (!container) return;
-    container.innerHTML = ''; // Очищаємо перед створенням
+    container.innerHTML = '';
 
     clock = new THREE.Clock();
     scene = new THREE.Scene();
-    
-    camera3D = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
-    camera3D.position.set(0, 1.2, 2.5);
+    scene.background = new THREE.Color(0x080611);
 
-    renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-    renderer.setSize(80, 80);
+    const width = container.clientWidth || window.innerWidth;
+    const height = container.clientHeight || window.innerHeight;
+
+    camera3D = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
+    camera3D.position.set(0, 1.4, 3.2);
+
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(width, height);
     renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.shadowMap.enabled = true;
     container.appendChild(renderer.domElement);
 
-    // Світло
+    // Освітлення (М'яке підсвічування кімнати)
     const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
     scene.add(ambientLight);
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    dirLight.position.set(2, 4, 3);
+    const dirLight = new THREE.DirectionalLight(0xa855f7, 1.5);
+    dirLight.position.set(3, 5, 4);
+    dirLight.castShadow = true;
     scene.add(dirLight);
 
-    // Завантаження 3D-моделі манекена-тренера з анімацією
+    const pointLight = new THREE.PointLight(0xec4899, 1, 10);
+    pointLight.position.set(-2, 2, 2);
+    scene.add(pointLight);
+
+    // Створення 3D Фітнес-килимка (Fitness Mat)
+    const matGeometry = new THREE.BoxGeometry(1.2, 0.02, 2);
+    const matMaterial = new THREE.MeshStandardMaterial({ color: 0x261f3b, roughness: 0.4 });
+    const mat = new THREE.Mesh(matGeometry, matMaterial);
+    mat.position.set(0, -0.01, 0);
+    mat.receiveShadow = true;
+    scene.add(mat);
+
+    // Завантаження 3D Анімованого Тренера
     const loader = new THREE.GLTFLoader();
-    // Використовуємо якісну анімовану модель персонажа з CDN
     const modelUrl = 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/models/gltf/RobotExpressive/RobotExpressive.glb';
 
     loader.load(modelUrl, (gltf) => {
-        const model = gltf.scene;
-        model.scale.set(0.28, 0.28, 0.28);
-        model.position.set(0, -0.6, 0);
-        scene.add(model);
+        trainerModel = gltf.scene;
+        trainerModel.scale.set(0.35, 0.35, 0.35);
+        trainerModel.position.set(0, 0, 0);
+        scene.add(trainerModel);
 
-        // Налаштування анімацій
-        mixer = new THREE.AnimationMixer(model);
+        mixer = new THREE.AnimationMixer(trainerModel);
         const animations = gltf.animations;
 
-        // Пошук анімації (привітання або діяльності)
+        // Почати анімацію руху тренера
         const danceAnim = THREE.AnimationClip.findByName(animations, 'Dance') || animations[0];
         if (danceAnim) {
             const action = mixer.clipAction(danceAnim);
@@ -95,9 +110,19 @@ function init3DAvatar() {
         }
 
         animate3D();
-    }, undefined, (error) => {
-        console.error("Помилка завантаження 3D моделі:", error);
     });
+
+    window.addEventListener('resize', onWindowResize);
+}
+
+function onWindowResize() {
+    const container = document.getElementById('threejs-canvas-container');
+    if (!container || !renderer || !camera3D) return;
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+    camera3D.aspect = width / height;
+    camera3D.updateProjectionMatrix();
+    renderer.setSize(width, height);
 }
 
 function animate3D() {
@@ -206,11 +231,6 @@ function speak(text, force = false) {
     }
 }
 
-function getRandomMotivationalPhrase() {
-    const randomIndex = Math.floor(Math.random() * motivationalPhrases.length);
-    return motivationalPhrases[randomIndex];
-}
-
 function calculateAngle(a, b, c) {
     const radians = Math.atan2(c.y - b.y, c.x - b.x) - Math.atan2(a.y - b.y, a.x - b.x);
     let angle = Math.abs((radians * 180.0) / Math.PI);
@@ -230,9 +250,10 @@ analyzeBtn.addEventListener('click', async () => {
     }
 
     workoutScreen.classList.remove('hidden');
-    init3DAvatar();
+    setTimeout(initFull3DScene, 100);
+
     exerciseTitle.textContent = "Аналізуємо...";
-    aiFeedback.textContent = "Зчитуємо зображення за допомогою AI...";
+    aiFeedback.textContent = "AI розпізнає вправу...";
     speak("Так-так, вивчаю вашу вправу зі скріншота.", true);
 
     try {
@@ -242,7 +263,7 @@ analyzeBtn.addEventListener('click', async () => {
             body: JSON.stringify({
                 contents: [{
                     parts: [
-                        { text: "Аналізуй зображення вправи. Відповідай виключно у чистому формат format JSON без маркдаун-тегів. Формат: {\"name\": \"назва вправи українською\", \"instruction\": \"детальна інструкція виконання з 25-35 слів українською мовою\", \"duration\": 45}" },
+                        { text: "Аналізуй зображення вправи. Відповідай виключно у чистому форматі JSON без маркдаун-тегів. Формат: {\"name\": \"назва вправи українською\", \"instruction\": \"детальна інструкція виконання з 20-30 слів українською мовою\", \"duration\": 45}" },
                         { inline_data: { mime_type: "image/jpeg", data: base64Image } }
                     ]
                 }]
@@ -261,8 +282,8 @@ analyzeBtn.addEventListener('click', async () => {
 
     } catch (error) {
         console.error(error);
-        exerciseTitle.textContent = "Помилка розпізнавання";
-        aiFeedback.textContent = error.message || "Не вдалося зчитати вправу.";
+        exerciseTitle.textContent = "Помилка";
+        aiFeedback.textContent = "Не вдалося зчитати вправу.";
         speak("Упс, щось пішло не так при розпізнаванні.", true);
     }
 });
@@ -277,17 +298,17 @@ function saveToLibrary(data) {
 
 function renderLibrary() {
     if (exerciseLibrary.length === 0) {
-        libraryList.innerHTML = `<p style="color: var(--text-muted); text-align: center;">Немає збережених вправ. Завантажте першу через сканер!</p>`;
+        libraryList.innerHTML = `<p class="empty-msg">Немає збережених вправ. Завантажте першу через сканер!</p>`;
         return;
     }
 
     libraryList.innerHTML = exerciseLibrary.map((item, index) => `
-        <div class="exercise-card">
-            <div class="exercise-info">
+        <div class="card" style="margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+            <div>
                 <h4>${item.name}</h4>
-                <p>Таймер: ${item.duration} сек</p>
+                <p style="font-size:0.75rem; color:var(--text-muted);">${item.duration} сек</p>
             </div>
-            <button class="btn-start-mini" onclick="startFromLibrary(${index})">Старт ▶</button>
+            <button class="btn btn-primary" style="width:auto; padding:8px 16px;" onclick="startFromLibrary(${index})">Старт ▶</button>
         </div>
     `).join('');
 }
@@ -300,11 +321,8 @@ function renderProgress() {
 
 window.startFromLibrary = function(index) {
     const item = exerciseLibrary[index];
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-    
     workoutScreen.classList.remove('hidden');
-    init3DAvatar();
+    setTimeout(initFull3DScene, 100);
     startWorkoutWithAI(item);
 };
 
@@ -315,8 +333,7 @@ function startWorkoutWithAI(data) {
     repCountDisplay.textContent = repCount;
 
     playBeep('start');
-    const introSpeech = `Вправу розпізнано: ${data.name}. Як виконувати: ${data.instruction}. Ставайте перед камерою і починаємо!`;
-    speak(introSpeech, true);
+    speak(`Починаємо вправу ${data.name}. 3D тренер показує техніку.`, true);
     
     startTimer(data.duration || 45);
     initPoseDetection();
@@ -359,7 +376,6 @@ function onPoseResults(results) {
 
     if (results.poseLandmarks) {
         const landmarks = results.poseLandmarks;
-
         const hip = landmarks[24];
         const knee = landmarks[26];
         const ankle = landmarks[28];
@@ -367,24 +383,9 @@ function onPoseResults(results) {
         if (hip && knee && ankle) {
             const kneeAngle = calculateAngle(hip, knee, ankle);
 
-            canvasCtx.beginPath();
-            canvasCtx.moveTo(hip.x * canvasElement.width, hip.y * canvasElement.height);
-            canvasCtx.lineTo(knee.x * canvasElement.width, knee.y * canvasElement.height);
-            canvasCtx.lineTo(ankle.x * canvasElement.width, ankle.y * canvasElement.height);
-            canvasCtx.lineWidth = 6;
-            canvasCtx.strokeStyle = '#00FF00';
-            canvasCtx.stroke();
-
-            [hip, knee, ankle].forEach(pt => {
-                canvasCtx.beginPath();
-                canvasCtx.arc(pt.x * canvasElement.width, pt.y * canvasElement.height, 8, 0, 2 * Math.PI);
-                canvasCtx.fillStyle = '#FF0055';
-                canvasCtx.fill();
-            });
-
             if (kneeAngle < 105 && exerciseStage === "up") {
                 exerciseStage = "down";
-                aiFeedback.textContent = "Нижче! Дотискай!";
+                aiFeedback.textContent = "Нижче! Тримай рівновагу!";
             }
 
             if (kneeAngle > 155 && exerciseStage === "down") {
@@ -392,14 +393,9 @@ function onPoseResults(results) {
                 repCount++;
                 repCountDisplay.textContent = repCount;
                 
-                if (repCount % 3 === 0) {
-                    const phrase = getRandomMotivationalPhrase();
-                    aiFeedback.textContent = `${repCount} — ${phrase}`;
-                    speak(`${repCount}! ${phrase}`);
-                } else {
-                    aiFeedback.textContent = `Зараховано! Повторення: ${repCount}`;
-                    speak(`${repCount}`);
-                }
+                const phrase = motivationalPhrases[repCount % motivationalPhrases.length];
+                aiFeedback.textContent = phrase;
+                speak(`${repCount}! ${phrase}`);
             }
         }
     }
@@ -409,46 +405,48 @@ function onPoseResults(results) {
 function startTimer(targetDuration) {
     clearInterval(timerInterval);
     secondsPassed = 0;
-    updateTimerDisplay();
+    updateTimerDisplay(targetDuration);
 
     timerInterval = setInterval(() => {
         if (!isPaused) {
             secondsPassed++;
-            updateTimerDisplay();
+            const remaining = targetDuration - secondsPassed;
+            updateTimerDisplay(remaining);
 
-            if (secondsPassed >= targetDuration) {
+            if (remaining <= 0) {
                 stopWorkout();
                 playBeep('finish');
-                aiFeedback.textContent = `Час! Зробли ${repCount} повторень. Чудова робота! 🔥`;
-                speak(`Стоп! Тренування закінчено! Ви зробили ${repCount} повторень. Відмінний результат!`, true);
+                aiFeedback.textContent = `Фініш! Зроблено ${repCount} повторень! 🎉`;
+                speak(`Стоп! Тренування закінчено! Ви зробили ${repCount} повторень!`, true);
             }
         }
     }, 1000);
 }
 
-function updateTimerDisplay() {
-    const mins = String(Math.floor(secondsPassed / 60)).padStart(2, '0');
-    const secs = String(secondsPassed % 60).padStart(2, '0');
-    timerDisplay.textContent = `${mins}:${secs}`;
+function updateTimerDisplay(sec) {
+    timerDisplay.textContent = Math.max(0, sec);
 }
 
 pauseBtn.addEventListener('click', () => {
     isPaused = !isPaused;
-    pauseBtn.textContent = isPaused ? "Продовжити" : "Пауза";
-    speak(isPaused ? "Пауза. Перепочиньте." : "Продовжуємо тренування!", true);
+    pauseBtn.querySelector('span').textContent = isPaused ? "▶" : "⏸";
+    speak(isPaused ? "Пауза" : "Продовжуємо!", true);
 });
 
 stopBtn.addEventListener('click', () => {
     stopWorkout();
-    playBeep('finish');
-    speak("Тренування завершено!", true);
+    workoutScreen.classList.add('hidden');
+});
+
+backBtn.addEventListener('click', () => {
+    stopWorkout();
+    workoutScreen.classList.add('hidden');
 });
 
 function stopWorkout() {
     clearInterval(timerInterval);
     if (camera) camera.stop();
     isPaused = false;
-    pauseBtn.textContent = "Пауза";
 
     if (secondsPassed > 5) {
         userStats.workouts += 1;
