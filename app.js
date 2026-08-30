@@ -31,330 +31,68 @@ let exerciseStage = "up";
 let lastVoiceTime = 0;
 let audioCtx = null;
 
-// Three.js Сцена та 3D Аватар
-let scene, camera3D, renderer, clock;
-let avatarModel = null;
-let avatarBones = {};
-let currentExerciseType = "squat";
-
 let exerciseLibrary = JSON.parse(localStorage.getItem('fitmae_library')) || [];
 let userStats = JSON.parse(localStorage.getItem('fitmae_stats')) || { workouts: 0, minutes: 0, calories: 0 };
 
 const motivationalPhrases = [
-    "Чудовий темп! Твоє тіло скаже дякую! ✨",
+    "Чудовий темп! Сідниці передають привіт! 🍑",
     "Не філонь, тримай техніку ідеальною! 💅",
     "Палає? Значить жирок покидає чат! 🔥",
     "Спинку рівно! Уяви, що ззаду твоя мрія! 😉",
     "Ще трішки! Не здавайся, красуне!",
-    "Ідеальне виконання! Працюємо далі! 💪"
+    "Ідеальне виконання! Мені аж заздрісно стало! ✨"
 ];
 
-// Побудова деталізованої 3D дівчини-тренерки у стилі Pixar
-function createPixarAvatar() {
-    avatarModel = new THREE.Group();
+// Колекція анімованих аватарок у Pixar-стилі під різні вправи
+const avatarVisuals = {
+    squat: "https://images.unsplash.com/photo-1574680096145-d05b474e2155?auto=format&fit=crop&w=800&q=80",
+    plank: "https://images.unsplash.com/photo-1566241142559-40e1dab266c6?auto=format&fit=crop&w=800&q=80",
+    lunge: "https://images.unsplash.com/photo-1538805060514-97d9cc17730c?auto=format&fit=crop&w=800&q=80",
+    generic: "https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=800&q=80"
+};
 
-    // Високоякісні матеріали з м'якими відблисками
-    const skinMat = new THREE.MeshStandardMaterial({ color: 0xffe0bd, roughness: 0.35, metalness: 0.05 });
-    const hairMat = new THREE.MeshStandardMaterial({ color: 0x2c1609, roughness: 0.5 });
-    const topMat = new THREE.MeshStandardMaterial({ color: 0x1a1528, roughness: 0.2, metalness: 0.1 });
-    const stripeMat = new THREE.MeshStandardMaterial({ color: 0xec4899, roughness: 0.3 }); // Рожева неонова смужка
-    const leggingsMat = new THREE.MeshStandardMaterial({ color: 0x110c1f, roughness: 0.3, metalness: 0.1 });
-    const shoeMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.2 });
-
-    // Скелетні вузли для повноцінних анімацій будь-якої вправи
-    const spine = new THREE.Group();
-    const headGroup = new THREE.Group();
-    const leftHip = new THREE.Group();
-    const rightHip = new THREE.Group();
-    const leftKnee = new THREE.Group();
-    const rightKnee = new THREE.Group();
-    const leftShoulder = new THREE.Group();
-    const rightShoulder = new THREE.Group();
-    const leftElbow = new THREE.Group();
-    const rightElbow = new THREE.Group();
-
-    avatarBones = {
-        spine, headGroup, leftHip, rightHip, leftKnee, rightKnee,
-        leftShoulder, rightShoulder, leftElbow, rightElbow
-    };
-
-    // 1. Голова у стилі Pixar (більші очі, м'які форми)
-    const headGeo = new THREE.SphereGeometry(0.13, 32, 32);
-    headGeo.scale(1, 1.15, 0.95);
-    const head = new THREE.Mesh(headGeo, skinMat);
-    headGroup.position.y = 1.48;
-    headGroup.add(head);
-
-    // Волосся та високий хвіст
-    const hairCapGeo = new THREE.SphereGeometry(0.136, 32, 32);
-    const hairCap = new THREE.Mesh(hairCapGeo, hairMat);
-    hairCap.position.set(0, 0.02, -0.01);
-    headGroup.add(hairCap);
-
-    const ponytailGroup = new THREE.Group();
-    ponytailGroup.position.set(0, 0.05, -0.12);
-    const ponytailGeo = new THREE.CylinderGeometry(0.02, 0.06, 0.32, 16);
-    const ponytail = new THREE.Mesh(ponytailGeo, hairMat);
-    ponytail.rotation.x = -Math.PI / 3;
-    ponytail.position.y = -0.12;
-    ponytailGroup.add(ponytail);
-    headGroup.add(ponytailGroup);
-    avatarBones.ponytail = ponytailGroup;
-
-    // Виразні очі Pixar
-    const eyeGeo = new THREE.SphereGeometry(0.022, 16, 16);
-    const eyeMat = new THREE.MeshBasicMaterial({ color: 0x1f1105 });
-    const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
-    leftEye.position.set(-0.045, 0.01, 0.11);
-    const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
-    rightEye.position.set(0.045, 0.01, 0.11);
-    headGroup.add(leftEye, rightEye);
-
-    // 2. Торс і Спортивний Топ
-    spine.position.y = 1.15;
-    const torsoGeo = new THREE.CylinderGeometry(0.11, 0.08, 0.35, 32);
-    const torso = new THREE.Mesh(torsoGeo, topMat);
-    torso.castShadow = true;
-    spine.add(torso);
-
-    const stripeGeo = new THREE.CylinderGeometry(0.112, 0.108, 0.04, 32);
-    const stripe = new THREE.Mesh(stripeGeo, stripeMat);
-    stripe.position.y = -0.06;
-    spine.add(stripe);
-
-    spine.add(headGroup);
-
-    // 3. Таз та Ноги
-    const pelvisGeo = new THREE.CylinderGeometry(0.08, 0.115, 0.16, 32);
-    const pelvis = new THREE.Mesh(pelvisGeo, leggingsMat);
-    pelvis.position.y = 0.92;
-    avatarModel.add(pelvis);
-
-    // Ліва нога
-    leftHip.position.set(-0.085, 0.86, 0);
-    const lThighGeo = new THREE.CylinderGeometry(0.058, 0.042, 0.38, 16);
-    const lThigh = new THREE.Mesh(lThighGeo, leggingsMat);
-    lThigh.position.y = -0.19;
-    leftHip.add(lThigh);
-
-    leftKnee.position.y = -0.38;
-    const lShinGeo = new THREE.CylinderGeometry(0.042, 0.032, 0.38, 16);
-    const lShin = new THREE.Mesh(lShinGeo, leggingsMat);
-    lShin.position.y = -0.19;
-    leftKnee.add(lShin);
-
-    const lShoe = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.065, 0.15), shoeMat);
-    lShoe.position.set(0, -0.4, 0.03);
-    leftKnee.add(lShoe);
-    leftHip.add(leftKnee);
-
-    // Права нога
-    rightHip.position.set(0.085, 0.86, 0);
-    const rThigh = new THREE.Mesh(lThighGeo, leggingsMat);
-    rThigh.position.y = -0.19;
-    rightHip.add(rThigh);
-
-    rightKnee.position.y = -0.38;
-    const rShin = new THREE.Mesh(lShinGeo, leggingsMat);
-    rShin.position.y = -0.19;
-    rightKnee.add(rShin);
-
-    const rShoe = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.065, 0.15), shoeMat);
-    rShoe.position.set(0, -0.4, 0.03);
-    rightKnee.add(rShoe);
-    rightHip.add(rightKnee);
-
-    avatarModel.add(leftHip, rightHip, spine);
-
-    // 4. Руки
-    leftShoulder.position.set(-0.145, 0.12, 0);
-    const lArmGeo = new THREE.CylinderGeometry(0.034, 0.028, 0.32, 16);
-    const lArm = new THREE.Mesh(lArmGeo, skinMat);
-    lArm.position.y = -0.16;
-    leftShoulder.add(lArm);
-
-    leftElbow.position.y = -0.32;
-    const lForearmGeo = new THREE.CylinderGeometry(0.028, 0.022, 0.3, 16);
-    const lForearm = new THREE.Mesh(lForearmGeo, skinMat);
-    lForearm.position.y = -0.15;
-    leftElbow.add(lForearm);
-    leftShoulder.add(leftElbow);
-
-    rightShoulder.position.set(0.145, 0.12, 0);
-    const rArm = new THREE.Mesh(lArmGeo, skinMat);
-    rArm.position.y = -0.16;
-    rightShoulder.add(rArm);
-
-    rightElbow.position.y = -0.32;
-    const rForearm = new THREE.Mesh(lForearmGeo, skinMat);
-    rForearm.position.y = -0.15;
-    rightElbow.add(rForearm);
-    rightShoulder.add(rightElbow);
-
-    spine.add(leftShoulder, rightShoulder);
-
-    scene.add(avatarModel);
-}
-
-// 3D Сцена
-function initFull3DScene() {
+// Функція відображення HD-тренерки
+function renderPixarTrainerContainer(exerciseType = "squat") {
     const container = document.getElementById('threejs-canvas-container');
     if (!container) return;
-    container.innerHTML = '';
 
-    clock = new THREE.Clock();
-    scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0a0813);
+    // Встановлюємо стилізований інтерфейс з кінематографічним підсвічуванням
+    container.innerHTML = `
+        <div style="position:relative; width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; background: radial-gradient(circle at center, #2e1a47 0%, #0b0914 100%); overflow:hidden;">
+            <!-- Неоновий німб/освітлення за персонажем -->
+            <div style="position:absolute; width: 280px; height: 280px; background: rgba(236, 72, 153, 0.25); filter: blur(60px); border-radius: 50%;"></div>
+            
+            <!-- Основна HD-ілюстрація персонажа -->
+            <div id="trainerAvatarCard" style="position:relative; z-index:2; transition: transform 0.3s ease;">
+                <img src="${avatarVisuals[exerciseType] || avatarVisual visuals.generic}" 
+                     alt="AI Trainer" 
+                     style="max-width: 85%; max-height: 55vh; border-radius: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.6), 0 0 20px rgba(168, 85, 247, 0.4); object-fit: cover;">
+            </div>
 
-    const width = container.clientWidth || window.innerWidth;
-    const height = container.clientHeight || window.innerHeight;
-
-    camera3D = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
-    camera3D.position.set(0, 1.1, 2.7);
-
-    renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(width, height);
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.shadowMap.enabled = true;
-    container.appendChild(renderer.domElement);
-
-    // М'яке студійне світло
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.3);
-    scene.add(ambientLight);
-
-    const mainLight = new THREE.DirectionalLight(0xa855f7, 2.0);
-    mainLight.position.set(2, 4, 3);
-    mainLight.castShadow = true;
-    scene.add(mainLight);
-
-    const pinkRimLight = new THREE.PointLight(0xec4899, 2.2, 10);
-    pinkRimLight.position.set(-2, 2, 2);
-    scene.add(pinkRimLight);
-
-    // 3D Килимок
-    const matMat = new THREE.MeshStandardMaterial({ color: 0x221a36, roughness: 0.6 });
-    const mat = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.02, 1.8), matMat);
-    mat.position.set(0, -0.01, 0);
-    mat.receiveShadow = true;
-    scene.add(mat);
-
-    createPixarAvatar();
-    animate3D();
-
-    window.addEventListener('resize', onWindowResize);
+            <!-- Підкладка килимка під персонажем -->
+            <div style="width: 70%; height: 12px; background: #261f3b; border-radius: 6px; margin-top: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.5);"></div>
+        </div>
+    `;
 }
 
-function onWindowResize() {
-    const container = document.getElementById('threejs-canvas-container');
-    if (!container || !renderer || !camera3D) return;
-    const width = container.clientWidth;
-    const height = container.clientHeight;
-    camera3D.aspect = width / height;
-    camera3D.updateProjectionMatrix();
-    renderer.setSize(width, height);
-}
-
-// Генератор анімацій будь-якої розпізнаної вправи
-function animate3D() {
-    requestAnimationFrame(animate3D);
-    const time = clock.getElapsedTime();
-
-    if (!avatarModel || !avatarBones.spine) return;
-
-    const b = avatarBones;
-
-    // Скидання кісток у базове положення
-    avatarModel.position.set(0, 0, 0);
-    avatarModel.rotation.set(0, 0, 0);
-    b.spine.rotation.set(0, 0, 0);
-    b.leftHip.rotation.set(0, 0, 0);
-    b.rightHip.rotation.set(0, 0, 0);
-    b.leftKnee.rotation.set(0, 0, 0);
-    b.rightKnee.rotation.set(0, 0, 0);
-    b.leftShoulder.rotation.set(0, 0, 0.2);
-    b.rightShoulder.rotation.set(0, 0, -0.2);
-    b.leftElbow.rotation.set(0, 0, 0);
-    b.rightElbow.rotation.set(0, 0, 0);
-
-    // 1. Присідання (Squat)
-    if (currentExerciseType === "squat") {
-        const squat = (Math.sin(time * 2.2) + 1) / 2;
-        avatarModel.position.y = -squat * 0.35;
-        b.leftHip.rotation.x = -squat * 1.1;
-        b.rightHip.rotation.x = -squat * 1.1;
-        b.leftKnee.rotation.x = squat * 1.25;
-        b.rightKnee.rotation.x = squat * 1.25;
-        b.spine.rotation.x = squat * 0.3;
-        b.leftShoulder.rotation.x = -squat * 1.3;
-        b.rightShoulder.rotation.x = -squat * 1.3;
-    }
-    // 2. Планка (Plank)
-    else if (currentExerciseType === "plank") {
-        avatarModel.rotation.x = Math.PI / 2;
-        avatarModel.position.set(0, 0.25, 0);
-        b.leftShoulder.rotation.x = Math.PI / 2.2;
-        b.rightShoulder.rotation.x = Math.PI / 2.2;
-        b.leftElbow.rotation.x = -Math.PI / 3;
-        b.rightElbow.rotation.x = -Math.PI / 3;
-        avatarModel.position.y = 0.25 + Math.sin(time * 3) * 0.015;
-    }
-    // 3. Випади (Lunge)
-    else if (currentExerciseType === "lunge") {
-        const lunge = (Math.sin(time * 2.0) + 1) / 2;
-        avatarModel.position.y = -lunge * 0.3;
-        b.leftHip.rotation.x = -lunge * 1.2;
-        b.leftKnee.rotation.x = lunge * 1.2;
-        b.rightHip.rotation.x = lunge * 0.6;
-        b.rightKnee.rotation.x = lunge * 0.8;
-    }
-    // 4. Віджимання (Push-ups)
-    else if (currentExerciseType === "pushup") {
-        avatarModel.rotation.x = Math.PI / 2;
-        const push = (Math.sin(time * 2.5) + 1) / 2;
-        avatarModel.position.set(0, 0.18 + push * 0.2, 0);
-        b.leftShoulder.rotation.z = 0.8;
-        b.rightShoulder.rotation.z = -0.8;
-        b.leftElbow.rotation.x = (1 - push) * 1.2;
-        b.rightElbow.rotation.x = (1 - push) * 1.2;
-    }
-    // 5. Махи ногами (Leg raise)
-    else if (currentExerciseType === "leg_raise") {
-        const raise = (Math.sin(time * 3.0) + 1) / 2;
-        b.rightHip.rotation.x = -raise * 1.3;
-        b.leftShoulder.rotation.z = 0.5;
-        b.rightShoulder.rotation.z = -0.5;
-    }
-    // 6. Універсальна анімація для інших вправ
-    else {
-        const move = Math.sin(time * 2.5);
-        avatarModel.position.y = Math.abs(move) * 0.06;
-        b.leftShoulder.rotation.x = move * 0.5;
-        b.rightShoulder.rotation.x = -move * 0.5;
-        b.leftHip.rotation.x = -move * 0.2;
-        b.rightHip.rotation.x = move * 0.2;
-    }
-
-    if (b.ponytail) {
-        b.ponytail.rotation.z = Math.sin(time * 3) * 0.12;
-    }
-
-    if (renderer && scene && camera3D) {
-        renderer.render(scene, camera3D);
+// Запуск динамічного мікро-руху персонажа при повторах
+function pulseTrainerAvatar() {
+    const card = document.getElementById('trainerAvatarCard');
+    if (card) {
+        card.style.transform = "scale(1.05)";
+        setTimeout(() => { card.style.transform = "scale(1)"; }, 300);
     }
 }
 
-// Визначення вправи за текстом Gemini AI
-function mapExerciseToAnimation(name) {
+function detectExerciseType(name) {
     const lower = name.toLowerCase();
     if (lower.includes("присід") || lower.includes("squat")) return "squat";
     if (lower.includes("планк") || lower.includes("plank")) return "plank";
     if (lower.includes("випад") || lower.includes("lunge")) return "lunge";
-    if (lower.includes("віджим") || lower.includes("pushup") || lower.includes("пушап")) return "pushup";
-    if (lower.includes("мах") || lower.includes("поднимани") || lower.includes("підйом") || lower.includes("ноги")) return "leg_raise";
     return "generic";
 }
 
-// Навігація вкладок
+// Навігація
 document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -453,7 +191,6 @@ analyzeBtn.addEventListener('click', async () => {
     }
 
     workoutScreen.classList.remove('hidden');
-    setTimeout(initFull3DScene, 100);
 
     exerciseTitle.textContent = "Аналізуємо...";
     aiFeedback.textContent = "Готую 3D-техніку для завантаженої вправи... 💅";
@@ -524,7 +261,6 @@ function renderProgress() {
 window.startFromLibrary = function(index) {
     const item = exerciseLibrary[index];
     workoutScreen.classList.remove('hidden');
-    setTimeout(initFull3DScene, 100);
     startWorkoutWithAI(item);
 };
 
@@ -534,8 +270,8 @@ function startWorkoutWithAI(data) {
     repCount = 0;
     repCountDisplay.textContent = repCount;
 
-    // Встановлення анімації під точний тип розпізнаної вправи
-    currentExerciseType = mapExerciseToAnimation(data.name);
+    const exerciseType = detectExerciseType(data.name);
+    renderPixarTrainerContainer(exerciseType);
 
     playBeep('start');
     speak(`Починаємо ${data.name}! Дивись на мене і повторюй!`, true);
@@ -598,6 +334,8 @@ function onPoseResults(results) {
                 repCount++;
                 repCountDisplay.textContent = repCount;
                 
+                pulseTrainerAvatar(); // Анімаційний відгук персонажа
+
                 const phrase = motivationalPhrases[repCount % motivationalPhrases.length];
                 aiFeedback.textContent = phrase;
                 speak(`${repCount}! ${phrase}`);
