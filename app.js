@@ -32,6 +32,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let lastVoiceTime = 0;
     let audioCtx = null;
 
+    // Three.js 3D-Аватар
+    let scene, camera3D, renderer, clock;
+    let avatarGroup, bodyGroup, leftLeg, rightLeg, leftArm, rightArm, headGroup;
+    let currentExerciseType = "squat";
+
     let exerciseLibrary = JSON.parse(localStorage.getItem('fitmae_library')) || [];
     let userStats = JSON.parse(localStorage.getItem('fitmae_stats')) || { workouts: 0, minutes: 0, calories: 0 };
 
@@ -43,13 +48,6 @@ document.addEventListener('DOMContentLoaded', () => {
         "Ще трішки! Не здавайся, красуне!",
         "Ідеальне виконання! Мені аж заздрісно стало! ✨"
     ];
-
-    const avatarVisuals = {
-        squat: "https://images.unsplash.com/photo-1574680096145-d05b474e2155?auto=format&fit=crop&w=800&q=80",
-        plank: "https://images.unsplash.com/photo-1566241142559-40e1dab266c6?auto=format&fit=crop&w=800&q=80",
-        lunge: "https://images.unsplash.com/photo-1538805060514-97d9cc17730c?auto=format&fit=crop&w=800&q=80",
-        generic: "https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=800&q=80"
-    };
 
     // --- Перемикання вкладок ---
     document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -66,41 +64,165 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // --- Відображення 3D-аватарки тренерки ---
-    function renderPixarTrainerContainer(exerciseType = "squat") {
+    // --- Створення 3D Персонажа Pixar ---
+    function init3DPixarTrainer() {
         const container = document.getElementById('threejs-canvas-container');
         if (!container) return;
+        container.innerHTML = '';
 
-        const imgSrc = avatarVisuals[exerciseType] || avatarVisuals.generic;
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0e091b);
 
-        container.innerHTML = `
-            <div style="position:relative; width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; background: radial-gradient(circle at center, #2e1a47 0%, #0b0914 100%); overflow:hidden;">
-                <div style="position:absolute; width: 280px; height: 280px; background: rgba(236, 72, 153, 0.25); filter: blur(60px); border-radius: 50%;"></div>
-                
-                <div id="trainerAvatarCard" style="position:relative; z-index:2; transition: transform 0.3s ease;">
-                    <img src="${imgSrc}" 
-                         alt="AI Trainer" 
-                         style="max-width: 85%; max-height: 55vh; border-radius: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.6), 0 0 20px rgba(168, 85, 247, 0.4); object-fit: cover;">
-                </div>
+        const width = container.clientWidth || window.innerWidth;
+        const height = container.clientHeight || 400;
 
-                <div style="width: 70%; height: 12px; background: #261f3b; border-radius: 6px; margin-top: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.5);"></div>
-            </div>
-        `;
+        camera3D = new THREE.PerspectiveCamera(40, width / height, 0.1, 100);
+        camera3D.position.set(0, 1.1, 2.8);
+
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(width, height);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        container.appendChild(renderer.domElement);
+
+        clock = new THREE.Clock();
+
+        // Світло
+        const ambient = new THREE.AmbientLight(0xffffff, 1.2);
+        scene.add(ambient);
+
+        const mainLight = new THREE.DirectionalLight(0xffe0ff, 1.8);
+        mainLight.position.set(2, 4, 3);
+        mainLight.castShadow = true;
+        scene.add(mainLight);
+
+        const purpleRim = new THREE.PointLight(0xec4899, 2.5, 8);
+        purpleRim.position.set(-2, 2, -1);
+        scene.add(purpleRim);
+
+        // Килимок для фітнесу
+        const matMat = new THREE.MeshStandardMaterial({ color: 0x241838, roughness: 0.5 });
+        const mat = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.02, 1.6), matMat);
+        mat.position.set(0, -0.01, 0);
+        scene.add(mat);
+
+        // Матеріали дівчини
+        const skinMat = new THREE.MeshStandardMaterial({ color: 0xffd2b5, roughness: 0.3 });
+        const hairMat = new THREE.MeshStandardMaterial({ color: 0x3a1e05, roughness: 0.4 });
+        const clothTopMat = new THREE.MeshStandardMaterial({ color: 0x181325, roughness: 0.2 });
+        const clothLegMat = new THREE.MeshStandardMaterial({ color: 0x2d1f47, roughness: 0.3 });
+        const shoeMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 });
+
+        avatarGroup = new THREE.Group();
+        bodyGroup = new THREE.Group();
+
+        // 1. Голова і Волосся (Pixar Style)
+        headGroup = new THREE.Group();
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.14, 32, 32), skinMat);
+        head.scale.set(1, 1.15, 1);
+        headGroup.add(head);
+
+        // Зачіска та Хвіст
+        const hairTop = new THREE.Mesh(new THREE.SphereGeometry(0.148, 32, 32), hairMat);
+        hairTop.position.set(0, 0.02, -0.01);
+        headGroup.add(hairTop);
+
+        const ponytail = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.07, 0.3, 16), hairMat);
+        ponytail.position.set(0, 0.05, -0.15);
+        ponytail.rotation.x = -Math.PI / 3;
+        headGroup.add(ponytail);
+
+        // Очі
+        const eyeMat = new THREE.MeshBasicMaterial({ color: 0x1a0d00 });
+        const leftEye = new THREE.Mesh(new THREE.SphereGeometry(0.022, 16, 16), eyeMat);
+        leftEye.position.set(-0.045, 0.02, 0.125);
+        const rightEye = leftEye.clone();
+        rightEye.position.x = 0.045;
+        headGroup.add(leftEye, rightEye);
+
+        headGroup.position.y = 1.38;
+        bodyGroup.add(headGroup);
+
+        // 2. Торс і Спортивний Топ
+        const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.075, 0.32, 32), clothTopMat);
+        torso.position.y = 1.08;
+        bodyGroup.add(torso);
+
+        // 3. Руки
+        const armGeo = new THREE.CylinderGeometry(0.03, 0.022, 0.38, 16);
+        leftArm = new THREE.Mesh(armGeo, skinMat);
+        leftArm.position.set(-0.15, 1.05, 0);
+        
+        rightArm = new THREE.Mesh(armGeo, skinMat);
+        rightArm.position.set(0.15, 1.05, 0);
+
+        bodyGroup.add(leftArm, rightArm);
+
+        // 4. Таз та Ноги
+        const pelvis = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.11, 0.16, 32), clothLegMat);
+        pelvis.position.y = 0.84;
+        bodyGroup.add(pelvis);
+
+        const legGeo = new THREE.CylinderGeometry(0.05, 0.035, 0.7, 16);
+        leftLeg = new THREE.Mesh(legGeo, clothLegMat);
+        leftLeg.position.set(-0.08, 0.42, 0);
+
+        rightLeg = new THREE.Mesh(legGeo, clothLegMat);
+        rightLeg.position.set(0.08, 0.42, 0);
+
+        const leftShoe = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.06, 0.14), shoeMat);
+        leftShoe.position.set(0, -0.36, 0.03);
+        leftLeg.add(leftShoe);
+
+        const rightShoe = leftShoe.clone();
+        rightLeg.add(rightShoe);
+
+        avatarGroup.add(leftLeg, rightLeg, bodyGroup);
+        scene.add(avatarGroup);
+
+        animate3D();
+    }
+
+    // --- Динамічна Анімація Вправ ---
+    function animate3D() {
+        requestAnimationFrame(animate3D);
+        if (!clock || !avatarGroup) return;
+
+        const time = clock.getElapsedTime();
+
+        if (currentExerciseType === "squat") {
+            const squat = (Math.sin(time * 2.5) + 1) / 2;
+            bodyGroup.position.y = -squat * 0.32;
+            
+            // Руки витягнуті вперед як на скріншоті
+            leftArm.rotation.x = -Math.PI / 2.2;
+            rightArm.rotation.x = -Math.PI / 2.2;
+            leftArm.position.z = 0.12;
+            rightArm.position.z = 0.12;
+
+            leftLeg.scale.set(1, 1 - squat * 0.2, 1);
+            rightLeg.scale.set(1, 1 - squat * 0.2, 1);
+        } else {
+            const idle = Math.sin(time * 2) * 0.03;
+            bodyGroup.position.y = idle;
+            leftArm.rotation.x = 0;
+            rightArm.rotation.x = 0;
+            leftArm.position.z = 0;
+            rightArm.position.z = 0;
+        }
+
+        renderer.render(scene, camera3D);
     }
 
     function pulseTrainerAvatar() {
-        const card = document.getElementById('trainerAvatarCard');
-        if (card) {
-            card.style.transform = "scale(1.05)";
-            setTimeout(() => { card.style.transform = "scale(1)"; }, 300);
+        if (bodyGroup) {
+            bodyGroup.position.y += 0.05;
         }
     }
 
     function detectExerciseType(name) {
         const lower = name.toLowerCase();
         if (lower.includes("присід") || lower.includes("squat")) return "squat";
-        if (lower.includes("планк") || lower.includes("plank")) return "plank";
-        if (lower.includes("випад") || lower.includes("lunge")) return "lunge";
         return "generic";
     }
 
@@ -135,10 +257,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (e) { console.error(e); }
     }
 
-    // --- Завантаження зображення ---
-    if (dropZone) {
-        dropZone.addEventListener('click', () => imageInput.click());
-    }
+    if (dropZone) dropZone.addEventListener('click', () => imageInput.click());
 
     if (imageInput) {
         imageInput.addEventListener('change', (e) => {
@@ -149,7 +268,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     imagePreview.src = event.target.result;
                     base64Image = event.target.result.split(',')[1];
                     previewContainer.classList.remove('hidden');
-                    analyzeBtn.disabled = false; // Кнопка аналізу розблоковується одразу
+                    analyzeBtn.disabled = false;
                 };
                 reader.readAsDataURL(file);
             }
@@ -184,7 +303,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return angle;
     }
 
-    // --- Аналіз Gemini AI з резервним режимом ---
     if (analyzeBtn) {
         analyzeBtn.addEventListener('click', async () => {
             initAudioContext();
@@ -197,16 +315,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const apiKey = apiKeyInput ? apiKeyInput.value.trim() : "";
 
             if (!apiKey) {
-                // Демо-режим, якщо API Key відсутній
                 setTimeout(() => {
                     const demoData = {
                         name: "Присідання",
-                        instruction: "Тримай спину рівно, коліна дивляться в бік носків. Опускайся до паралелі з підлогою.",
+                        instruction: "Тримай спину рівно, коліна дивляться в бік носків.",
                         duration: 45
                     };
                     saveToLibrary(demoData);
                     startWorkoutWithAI(demoData);
-                }, 1500);
+                }, 1200);
                 return;
             }
 
@@ -217,7 +334,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     body: JSON.stringify({
                         contents: [{
                             parts: [
-                                { text: "Аналізуй зображення вправи. Відповідай виключно у чистому форматі JSON без маркдаун-тегів. Формат: {\"name\": \"назва вправи українською\", \"instruction\": \"детальна інструкція виконання з 20-30 слів українською мовою\", \"duration\": 45}" },
+                                { text: "Аналізуй зображення вправи. Формат JSON: {\"name\": \"назва вправи\", \"instruction\": \"інструкція\", \"duration\": 45}" },
                                 { inline_data: { mime_type: "image/jpeg", data: base64Image } }
                             ]
                         }]
@@ -225,8 +342,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
                 const data = await response.json();
-                if (data.error) throw new Error(data.error.message);
-
                 let rawText = data.candidates[0].content.parts[0].text;
                 rawText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
                 const exerciseData = JSON.parse(rawText);
@@ -237,7 +352,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (error) {
                 console.error(error);
                 exerciseTitle.textContent = "Помилка";
-                aiFeedback.textContent = "Не вдалося розпізнати фото. Спробуй ще раз!";
+                aiFeedback.textContent = "Спробуй ще раз!";
             }
         });
     }
@@ -253,7 +368,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderLibrary() {
         if (!libraryList) return;
         if (exerciseLibrary.length === 0) {
-            libraryList.innerHTML = `<p class="empty-msg" style="text-align:center; color:var(--text-muted); padding:20px;">Немає збережених вправ. Завантажте першу через сканер!</p>`;
+            libraryList.innerHTML = `<p class="empty-msg" style="text-align:center; color:var(--text-muted); padding:20px;">Немає збережених вправ.</p>`;
             return;
         }
 
@@ -289,8 +404,8 @@ document.addEventListener('DOMContentLoaded', () => {
         repCount = 0;
         if (repCountDisplay) repCountDisplay.textContent = repCount;
 
-        const exerciseType = detectExerciseType(data.name);
-        renderPixarTrainerContainer(exerciseType);
+        currentExerciseType = detectExerciseType(data.name);
+        setTimeout(init3DPixarTrainer, 100);
 
         playBeep('start');
         speak(`Починаємо ${data.name}! Дивись на мене і повторюй!`, true);
